@@ -17,15 +17,13 @@ func NewStore(database db.DBConnector) *store {
 	return &store{db: database.GetDB()}
 }
 
-func (s *store) GetMemberByEmail(email string) (*member.Member, error) {
-	var member member.Member
-	if err := s.db.Where("email = ?", email).First(&member).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
+func (s *store) createMember(member *member.Member) (int64, error) {
+	err := s.db.Create(member).Error
+	if err != nil {
+		return 0, err
 	}
-	return &member, nil
+
+	return member.ID, nil
 }
 
 func (s *store) isMemberTaken(ctx context.Context, id int64, loginName, email, phone string) ([]*member.Member, error) {
@@ -39,11 +37,24 @@ func (s *store) isMemberTaken(ctx context.Context, id int64, loginName, email, p
 	return members, nil
 }
 
-func (s *store) createMember(member *member.Member) (int64, error) {
-	err := s.db.Create(member).Error
-	if err != nil {
-		return 0, err
+func (s *store) getMemberByLoginName(ctx context.Context, loginName string) (*member.Member, error) {
+	var member member.Member
+	if err := s.db.WithContext(ctx).Where("login_name = ?", loginName).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
+	return &member, nil
+}
 
-	return member.ID, nil
+func (s *store) getMemberByID(ctx context.Context, id string) (*member.Member, error) {
+	var member member.Member
+	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &member, nil
 }
