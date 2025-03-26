@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"money-transfer-demo/cmd/identity/app"
 )
@@ -28,6 +29,13 @@ func main() {
 	}
 
 	<-ctx.Done()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("❌ Failed to shutdown server: %v", err)
+	}
 
 	sqlDB, err := server.Postgresdb.DB()
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"log"
 	"money-transfer-demo/pkg/identity/config"
 	"money-transfer-demo/pkg/identity/protocol/rest"
+	"net/http"
 
 	"gorm.io/gorm"
 
@@ -16,6 +17,7 @@ import (
 type Server struct {
 	Postgresdb *gorm.DB
 	cfg        *config.Config
+	RestServer *rest.Server
 }
 
 func NewServer() (*Server, error) {
@@ -36,15 +38,22 @@ func NewServer() (*Server, error) {
 		MemberSvc: memberSvc,
 	}, cfg)
 
-	err = restServer.Run(context.Background())
-	if err != nil {
-		log.Fatalf("❌ Failed to start server: %v", err)
-		return nil, err
-	}
+	go func() {
+		if err := restServer.Run(context.Background()); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("❌ Failed to start server: %v", err)
+		}
+	}()
 
 	return &Server{
 		Postgresdb: postgresdb.GetDB(),
 		cfg:        cfg,
+		RestServer: restServer,
 	}, nil
+}
 
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.RestServer != nil {
+		return s.RestServer.Shutdown(ctx)
+	}
+	return nil
 }

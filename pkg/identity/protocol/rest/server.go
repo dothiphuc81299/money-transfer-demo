@@ -16,6 +16,7 @@ type Server struct {
 	Cfg          *config.Config
 	Dependencies *Dependencies
 	Router       *gin.Engine
+	HTTPServer   *http.Server
 }
 
 type Dependencies struct {
@@ -56,7 +57,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	handler := c.Handler(router)
 
-	srv := &http.Server{
+	s.HTTPServer = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.Cfg.Server.HTTPPort),
 		Handler: handler,
 	}
@@ -65,7 +66,7 @@ func (s *Server) Run(ctx context.Context) error {
 		<-stopCh
 		log.Println("Shutting down HTTP server...")
 
-		if err := srv.Shutdown(context.Background()); err != nil {
+		if err := s.HTTPServer.Shutdown(context.Background()); err != nil {
 			log.Printf("❌ Server forced to shutdown: %v\n", err)
 		}
 
@@ -74,9 +75,16 @@ func (s *Server) Run(ctx context.Context) error {
 
 	log.Printf("🚀 Starting HTTP server on port %s...\n", s.Cfg.Server.HTTPPort)
 
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := s.HTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 
+	return nil
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.HTTPServer != nil {
+		return s.HTTPServer.Shutdown(ctx)
+	}
 	return nil
 }
