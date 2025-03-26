@@ -39,3 +39,54 @@ psql -h localhost -U postgres -d identity-demo -c "DELETE FROM schema_migrations
 migrate -database "postgres://postgres:secret@localhost:5432/identity-demo?sslmode=disable" -path pkg/identity/db/migrations up
 ```
 
+# Setting Up Protocol Buffers for Go
+
+## Prerequisites
+Ensure you have `protoc` installed. You can check with:
+```sh
+protoc --version
+```
+If not installed, download it from [Protocol Buffers releases](https://github.com/protocolbuffers/protobuf/releases) and follow the installation instructions.
+
+## Install Go Plugins
+Run the following commands to install the necessary plugins:
+```sh
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```
+
+## Verify Installation
+Check if the plugins are installed correctly:
+```sh
+which protoc-gen-go
+which protoc-gen-go-grpc
+```
+Ensure they are located in `$GOPATH/bin` (default: `~/go/bin`).
+
+## Add to PATH (if necessary)
+If `which protoc-gen-go` returns nothing, add the Go binary directory to your `PATH`:
+```sh
+export PATH=$PATH:$(go env GOPATH)/bin
+```
+Add this line to `~/.bashrc`, `~/.bash_profile`, or `~/.zshrc` to persist it:
+```sh
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+source ~/.bashrc
+```
+
+## Generating Go Code from .proto Files
+Run the following command to generate Go code:
+```sh
+protoc --go_out=. --go_opt=paths=source_relative \
+       --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+       pkg/apis/payment/payment.proto
+```
+
+Replace `pkg/apis/payment/payment.proto` with your `.proto` file path as needed.
+
+## Troubleshooting
+- If `protoc-gen-go: program not found or is not executable` appears, ensure you installed `protoc-gen-go` and added it to `PATH`.
+- If `Unknown flag: --go-grpc_opt` appears, check that `protoc-gen-go-grpc` is correctly installed.
+
+Now you're ready to work with Protocol Buffers in Go! 🚀
+

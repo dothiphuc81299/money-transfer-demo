@@ -115,7 +115,7 @@ func (cmd CreateMemberCommand) Validate() error {
 func validatePhone(value interface{}) error {
 	phone, _ := value.(string)
 	phone = strings.Replace(phone, "+", "", -1)
-	if !regexp.MustCompile(`^\d{10,11}$`).MatchString(phone) {
+	if !regexp.MustCompile(`^\d{9,11}$`).MatchString(phone) {
 		return ErrInvalidPhoneNumber
 	}
 	return nil

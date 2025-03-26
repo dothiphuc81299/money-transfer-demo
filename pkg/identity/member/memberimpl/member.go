@@ -2,10 +2,13 @@ package memberimpl
 
 import (
 	"context"
+	paymentapi "money-transfer-demo/pkg/apis/payment"
 	"money-transfer-demo/pkg/identity/member"
 	"money-transfer-demo/pkg/util/password"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -13,14 +16,23 @@ const (
 )
 
 type service struct {
-	store *store
+	store         *store
+	paymentClient paymentapi.PaymentClient
 }
 
-func NewService(store *store) member.Service {
-	return &service{store: store}
+func NewService(store *store, paymentClient paymentapi.PaymentClient) member.Service {
+	return &service{
+		store:         store,
+		paymentClient: paymentClient,
+	}
 }
 
 func (s *service) CreateMember(ctx context.Context, cmd *member.CreateMemberCommand) (*member.CreateMemberResult, error) {
+	var (
+		now = time.Now().UTC().Format(TimestampFormat)
+		id  int64
+	)
+
 	result, err := s.store.isMemberTaken(ctx, 0, cmd.LoginName, cmd.Email, cmd.Phone)
 	if err != nil {
 		return nil, err
@@ -45,7 +57,6 @@ func (s *service) CreateMember(ctx context.Context, cmd *member.CreateMemberComm
 	cmd.Phone = strings.ReplaceAll(cmd.Phone, "+", "")
 	cmd.Phone = string(cmd.PrefixPhone) + cmd.Phone
 
-	now := time.Now().UTC().Format(TimestampFormat)
 	entity := member.Member{
 		LoginName:         cmd.LoginName,
 		Status:            member.Active,
@@ -66,7 +77,25 @@ func (s *service) CreateMember(ctx context.Context, cmd *member.CreateMemberComm
 	}
 
 	entity.Password = password
-	id, err := s.store.createMember(&entity)
+
+	err = s.store.db.Transaction(func(tx *gorm.DB) error {
+		id, err = s.store.createMember(tx, &entity)
+		if err != nil {
+			return err
+		}
+
+		_, err = s.paymentClient.CreateMemberAccount(ctx, &paymentapi.CreateMemberAccountCommand{
+			MemberId:  id,
+			LoginName: cmd.LoginName,
+			Currency:  string(cmd.Currency),
+			Status:    int64(member.Active),
+		})
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
 	}

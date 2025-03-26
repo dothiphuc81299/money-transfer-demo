@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package v1;
+
+option go_package = "money-transfer-demo/pkg/apis/payment";
+
+message CreateMemberAccountCommand {
+    int64 member_id = 1;
+    string login_name =2;
+    string currency =3;
+    int64 status =4;
+}
+
+message CreateMemberAccountResponse {
+}
+
+service Payment {
+    rpc CreateMemberAccount(CreateMemberAccountCommand) returns (CreateMemberAccountResponse){}
+}

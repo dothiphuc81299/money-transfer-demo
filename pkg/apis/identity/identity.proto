@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package v1;
+
+option go_package = "money-transfer-demo/pkg/apis/identity";
