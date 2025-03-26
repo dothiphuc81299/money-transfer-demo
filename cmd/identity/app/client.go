@@ -22,15 +22,3 @@ func getPaymentClient(cfg *config.Config) (paymentapi.PaymentClient, error) {
 
 	return paymentapi.NewPaymentClient(conn), nil
 }
-
-// func getPaymentClient(cfg *config.Config) (paymentapi.PaymentClient, error) {
-// 	ctx, cancel := context.WithTimeout(context.Background(), GrpcRequestTimeout)
-// 	defer cancel()
-
-// 	conn, err := grpc.DialContext(ctx, cfg.GrpcClient.Payment, grpc.WithInsecure())
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return paymentapi.NewPaymentClient(conn), nil
-// }
