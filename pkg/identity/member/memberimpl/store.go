@@ -3,8 +3,8 @@ package memberimpl
 import (
 	"context"
 	"errors"
-	"money-transfer-demo/pkg/identity/db"
 	"money-transfer-demo/pkg/identity/member"
+	"money-transfer-demo/pkg/infra/storage/postgres"
 
 	"gorm.io/gorm"
 )
@@ -13,12 +13,12 @@ type store struct {
 	db *gorm.DB
 }
 
-func NewStore(database db.DBConnector) *store {
+func NewStore(database postgres.DBConnector) *store {
 	return &store{db: database.GetDB()}
 }
 
-func (s *store) createMember(member *member.Member) (int64, error) {
-	err := s.db.Create(member).Error
+func (s *store) createMember(tx *gorm.DB, member *member.Member) (int64, error) {
+	err := tx.Create(member).Error
 	if err != nil {
 		return 0, err
 	}

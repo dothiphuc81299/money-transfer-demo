@@ -14,7 +14,6 @@ func (s *Server) NewMemberHandler(r *gin.Engine) {
 	groupMember.POST("/", s.createMember)
 	groupMember.POST("/login", s.loginMember)
 	groupMember.GET("/detail/:id", s.getMemberByID, middleware.AuthMiddleware())
-
 }
 
 func (h *Server) createMember(c *gin.Context) {

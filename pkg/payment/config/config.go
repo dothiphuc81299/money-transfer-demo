@@ -1,16 +1,14 @@
 package config
 
 type Config struct {
-	Postgres   PostgresConfig
-	Server     Server
-	GrpcClient GRPCClientConfig
+	Postgres PostgresConfig
+	Server   Server
 }
 
 func FromEnv() (*Config, error) {
 	cfg := &Config{}
 	cfg.postgresConfig()
 	cfg.serverConfig()
-	cfg.grpcClientConfig()
 
 	return cfg, nil
 }

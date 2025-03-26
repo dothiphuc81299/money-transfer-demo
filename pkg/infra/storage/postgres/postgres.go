@@ -1,4 +1,4 @@
-package db
+package postgres
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ type DBConnector interface {
 	Close() error
 }
 
-func New(connection string) (*Database, error) {
+func New(connection, serviceName string) (*Database, error) {
 	db, err := gorm.Open(drivePostgres.Open(connection), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
@@ -32,7 +32,7 @@ func New(connection string) (*Database, error) {
 
 	database := &Database{DB: db}
 
-	if err := database.RunMigrations(); err != nil {
+	if err := database.RunMigrations(serviceName); err != nil {
 		return nil, fmt.Errorf("❌ migration error: %w", err)
 	}
 
@@ -51,14 +51,14 @@ func (p *Database) Close() error {
 	return sqlDB.Close()
 }
 
-func getMigrationPath() string {
-	baseDir, _ := os.Getwd() // Lấy thư mục làm việc hiện tại (cmd/identity)
-	migrationsPath := filepath.Join(baseDir, "..", "..", "pkg", "identity", "db", "migrations")
+func getMigrationPath(serviceName string) string {
+	baseDir, _ := os.Getwd()
+	migrationsPath := filepath.Join(baseDir, "..", "..", "pkg", serviceName, "db", "migrations")
 
 	return fmt.Sprintf("file://%s", migrationsPath)
 }
 
-func (p *Database) RunMigrations() error {
+func (p *Database) RunMigrations(serviceName string) error {
 	sqlDB, err := p.DB.DB()
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (p *Database) RunMigrations() error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		getMigrationPath(),
+		getMigrationPath(serviceName),
 		"postgres", driver,
 	)
 	if err != nil {

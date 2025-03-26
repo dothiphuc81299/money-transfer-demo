@@ -5,11 +5,10 @@ import (
 	"log"
 	"money-transfer-demo/pkg/identity/config"
 	"money-transfer-demo/pkg/identity/protocol/rest"
+	"money-transfer-demo/pkg/infra/storage/postgres"
 	"net/http"
 
 	"gorm.io/gorm"
-
-	"money-transfer-demo/pkg/identity/db"
 
 	memberimpl "money-transfer-demo/pkg/identity/member/memberimpl"
 )
@@ -20,19 +19,26 @@ type Server struct {
 	RestServer *rest.Server
 }
 
+const serviceName = "identity"
+
 func NewServer() (*Server, error) {
 	cfg, err := config.FromEnv()
 	if err != nil {
 		return nil, err
 	}
 
-	postgresdb, err := db.New(cfg.Postgres.ConnectionString())
+	postgresdb, err := postgres.New(cfg.Postgres.ConnectionString(), serviceName)
+	if err != nil {
+		return nil, err
+	}
+
+	paymentClient, err := getPaymentClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	memberStore := memberimpl.NewStore(postgresdb)
-	memberSvc := memberimpl.NewService(memberStore)
+	memberSvc := memberimpl.NewService(memberStore, paymentClient)
 
 	restServer := rest.NewServer(&rest.Dependencies{
 		MemberSvc: memberSvc,
