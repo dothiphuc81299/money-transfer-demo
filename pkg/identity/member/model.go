@@ -1,6 +1,24 @@
 package member
 
-import "time"
+import (
+	"errors"
+	"regexp"
+	"strings"
+
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
+)
+
+var (
+	ErrInvalidCurrency                          = errors.New("invalid currency")
+	ErrLoginNameMustNotContainSpecialCharacters = errors.New("login name must not contain special characters")
+	ErrInvalidPhoneNumber                       = errors.New("invalid phone number")
+	ErrInvalidPrefixPhone                       = errors.New("invalid prefix phone")
+	ErrEmailExists                              = errors.New("email already exists")
+	ErrPhoneNumberExists                        = errors.New("phone number already exists")
+	ErrMemberExists                             = errors.New("member already exists")
+	ErrLoginNameExists                          = errors.New("login name already exists")
+)
 
 type Status int
 
@@ -10,30 +28,81 @@ const (
 	Lock
 )
 
-type Member struct {
-	ID        uint   `json:"id"`
-	Uuid      string `json:"uuid"`
-	LoginName string `json:"login_name"`
-	Password  string `json:"-"`
-	Status    Status `json:"status"`
-	Currency  string `json:"currency"`
-	FullName  string `json:"full_name"`
-	Email     string `json:"email"`
-	Phone     string `json:"phone"`
-	Address   string `json:"address"`
+type EmailVerifyStatus int
 
-	Name      string `json:"name"`
-	
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+const (
+	EmailUnverified EmailVerifyStatus = iota + 1
+	EmailVerified
+)
+
+type PhoneVerifyStatus int
+
+const (
+	PhoneUnverified PhoneVerifyStatus = iota + 1
+	PhoneVerified
+)
+
+type CurrencyType string
+
+const (
+	VietnamDong        CurrencyType = "VND"
+	UnitedStatesDollar CurrencyType = "USD"
+)
+
+type Member struct {
+	ID                int64             `json:"id"`
+	LoginName         string            `json:"login_name"`
+	Password          string            `json:"-"`
+	Status            Status            `json:"status"`
+	Currency          CurrencyType      `json:"currency"`
+	FullName          string            `json:"full_name"`
+	Email             string            `json:"email"`
+	Phone             string            `json:"phone"`
+	Address           string            `json:"address"`
+	Salt              string            `json:"salt"`
+	EmailVerifyStatus EmailVerifyStatus `json:"email_verify_status"`
+	PhoneVerifyStatus PhoneVerifyStatus `json:"phone_verify_status"`
+	CreatedAt         string            `json:"created_at"`
+	UpdatedAt         string            `json:"updated_at"`
 }
 
 type CreateMemberCommand struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	LoginName   string       `json:"login_name"`
+	Password    string       `json:"password"`
+	Currency    CurrencyType `json:"currency"`
+	FullName    string       `json:"full_name"`
+	Email       string       `json:"email"`
+	Phone       string       `json:"phone"`
+	Address     string       `json:"address"`
+	PrefixPhone string       `json:"prefix_phone"`
 }
 
-func (c *CreateMemberCommand) Validate() error {
+type CreateMemberResult struct {
+	ID int64 `json:"id"`
+}
+
+// GORM will use `member` table
+func (Member) TableName() string {
+	return "member"
+}
+
+func (cmd CreateMemberCommand) Validate() error {
+	return validation.ValidateStruct(&cmd,
+		validation.Field(&cmd.LoginName, validation.Required, validation.Length(6, 20), validation.Match(regexp.MustCompile("^[a-zA-Z0-9]+$")).Error("must be alphanumeric")),
+		validation.Field(&cmd.Password, validation.Required, validation.Length(6, 0)),
+		validation.Field(&cmd.Currency, validation.Required, validation.In(VietnamDong, UnitedStatesDollar).Error(ErrInvalidCurrency.Error())),
+		validation.Field(&cmd.FullName, validation.Required, validation.Length(3, 0)),
+		validation.Field(&cmd.Email, validation.Required, is.Email),
+		validation.Field(&cmd.Phone, validation.Required, validation.By(validatePhone)),
+		validation.Field(&cmd.PrefixPhone, validation.Required),
+	)
+}
+
+func validatePhone(value interface{}) error {
+	phone, _ := value.(string)
+	phone = strings.Replace(phone, "+", "", -1)
+	if !regexp.MustCompile(`^\d{10,11}$`).MatchString(phone) {
+		return ErrInvalidPhoneNumber
+	}
 	return nil
 }

@@ -9,3 +9,4 @@ ALTER TABLE member DROP COLUMN avatar;
 ALTER TABLE member DROP COLUMN two_factor_enabled;
 ALTER TABLE member DROP COLUMN last_login_date;
 ALTER TABLE member DROP COLUMN uuid;
+

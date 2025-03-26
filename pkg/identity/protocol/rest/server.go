@@ -33,14 +33,11 @@ func NewServer(deps *Dependencies, cfg *config.Config) *Server {
 		Router:       router,
 	}
 
-	server.registerRoutes()
-
 	return server
 }
 
-func (s *Server) registerRoutes() {
-	r := s.Router
-	s.NewMemberHandler(r)
+func (s *Server) registerRoutes(router *gin.Engine) {
+	s.NewMemberHandler(router)
 }
 
 func (s *Server) Run(ctx context.Context) error {
@@ -48,6 +45,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	router := gin.New()
 
+	s.registerRoutes(router)
 	c := cors.New(cors.Options{
 		AllowedMethods:   []string{"GET", "POST", "DELETE", "PUT", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
