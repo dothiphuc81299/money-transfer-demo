@@ -73,3 +73,7 @@ func (s *service) CreateMember(ctx context.Context, cmd *member.CreateMemberComm
 
 	return &member.CreateMemberResult{ID: id}, nil
 }
+
+func (s *service) GetMemberByID(ctx context.Context, id string) (*member.Member, error) {
+	return s.store.getMemberByID(ctx, id)
+}

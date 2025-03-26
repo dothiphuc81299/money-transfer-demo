@@ -18,6 +18,9 @@ var (
 	ErrPhoneNumberExists                        = errors.New("phone number already exists")
 	ErrMemberExists                             = errors.New("member already exists")
 	ErrLoginNameExists                          = errors.New("login name already exists")
+	ErrMemberNotFound                           = errors.New("member not found")
+	ErrMemberInactive                           = errors.New("member inactive")
+	ErrInvalidPassword                          = errors.New("invalid password")
 )
 
 type Status int
@@ -59,7 +62,6 @@ type Member struct {
 	Email             string            `json:"email"`
 	Phone             string            `json:"phone"`
 	Address           string            `json:"address"`
-	Salt              string            `json:"salt"`
 	EmailVerifyStatus EmailVerifyStatus `json:"email_verify_status"`
 	PhoneVerifyStatus PhoneVerifyStatus `json:"phone_verify_status"`
 	CreatedAt         string            `json:"created_at"`
@@ -86,6 +88,18 @@ func (Member) TableName() string {
 	return "member"
 }
 
+type LoginMemberCommand struct {
+	LoginName string `json:"login_name"`
+	Password  string `json:"password"`
+}
+
+type LoginMemberResult struct {
+	LoginName   string `json:"login_name,omitempty"`
+	Currency    string `json:"currency,omitempty"`
+	AccessToken string `json:"access_token,omitempty"`
+	ExpiresIn   int64  `json:"expires_in,omitempty"`
+}
+
 func (cmd CreateMemberCommand) Validate() error {
 	return validation.ValidateStruct(&cmd,
 		validation.Field(&cmd.LoginName, validation.Required, validation.Length(6, 20), validation.Match(regexp.MustCompile("^[a-zA-Z0-9]+$")).Error("must be alphanumeric")),
@@ -105,4 +119,11 @@ func validatePhone(value interface{}) error {
 		return ErrInvalidPhoneNumber
 	}
 	return nil
+}
+
+func (cmd LoginMemberCommand) Validate() error {
+	return validation.ValidateStruct(&cmd,
+		validation.Field(&cmd.LoginName, validation.Required, validation.Length(6, 20), validation.Match(regexp.MustCompile("^[a-zA-Z0-9]+$")).Error("must be alphanumeric")),
+		validation.Field(&cmd.Password, validation.Required, validation.Length(6, 0)),
+	)
 }
