@@ -1,0 +1,126 @@
+package depositimpl
+
+import (
+	"context"
+	"encoding/json"
+	"money-transfer-demo/pkg/payment/bankacc"
+	"money-transfer-demo/pkg/payment/deposit"
+	"money-transfer-demo/pkg/payment/memberacc"
+	"money-transfer-demo/pkg/util/generator"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+type service struct {
+	store        *store
+	memberAccSrv memberacc.Service
+	bankAccSrv   bankacc.Service
+}
+
+func NewService(store *store, memberAccSrv memberacc.Service,bankAccSrv bankacc.Service) deposit.Service {
+	return &service{store: store, memberAccSrv: memberAccSrv, bankAccSrv: bankAccSrv}
+}
+
+func (s *service) CreateDeposit(ctx context.Context, cmd *deposit.CreateDepositCommand) error {
+	memberAcc, err := s.memberAccSrv.GetByMemberID(ctx, cmd.MemberID)
+	if err != nil {
+		return err
+	}
+
+	cmd.LoginName = memberAcc.LoginName
+	cmd.TransactionID = generator.GenerateTransactionID(string(cmd.PaymentMethodCode))
+
+	err = s.getLBTDetails(ctx, cmd)
+	if err != nil {
+		return err
+	}
+
+	err = s.store.db.Transaction(func(tx *gorm.DB) error {
+		entity := &deposit.Deposit{
+			RefCode:           cmd.RefCode,
+			PaymentMethodCode: string(cmd.PaymentMethodCode),
+			TransactionID:     cmd.TransactionID,
+			Status:            deposit.Processing,
+			MemberID:          cmd.MemberID,
+			LoginName:         cmd.LoginName,
+			Currency:          string(cmd.Currency),
+			Amount:            cmd.Amount,
+			Detail:            cmd.DetailStr,
+			BankAccount:       cmd.BankAccountStr,
+			CreatedAt:         time.Now().UTC().Format(time.RFC3339),
+			CreatedBy:         cmd.LoginName,
+		}
+
+		id, err := s.store.createDeposit(tx, entity)
+		if err != nil {
+			return err
+		}
+
+		timeline, err := json.Marshal(&deposit.TimelineDetail{
+			TransactionID: cmd.TransactionID,
+			Amount:        cmd.Amount,
+			PaymentMethod: string(cmd.PaymentMethodCode),
+			BankAccount:   cmd.BankAccountStr,
+			RefCode:       cmd.RefCode,
+		})
+		if err != nil {
+			return err
+		}
+
+		err = s.store.createDepositTimeline(tx, &deposit.DepositTimeline{
+			DepositID:         id,
+			Message:           deposit.Message(false, deposit.Processing, cmd.LoginName),
+			AdditionalContent: timeline,
+			CreatedAt:         time.Now().UTC().Format(time.RFC3339),
+			CreatedBy:         cmd.LoginName,
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+
+	})
+
+	return nil
+}
+
+func (s *service) updateDetail(tx *gorm.DB, cmd *deposit.UpdateDepositStatusCommand) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	err := s.store.updateDeposit(tx, &deposit.Deposit{
+		ID:        cmd.ID,
+		Status:    cmd.Status,
+		UpdatedBy: cmd.UpdatedBy,
+		UpdatedAt: now,
+	})
+	if err != nil {
+		return err
+	}
+
+	detailsJSON, err := json.Marshal(deposit.TimelineDetail{
+		Remark: cmd.Note,
+	})
+	if err != nil {
+		return err
+	}
+
+	timeline := &deposit.DepositTimeline{
+		DepositID:         cmd.ID,
+		Message:           deposit.Message(false, cmd.Status, cmd.UpdatedBy),
+		AdditionalContent: detailsJSON,
+		CreatedAt:         now,
+		CreatedBy:         cmd.UpdatedBy,
+	}
+
+	if len(cmd.Note) != 0 {
+		timeline.AdditionalContent = detailsJSON
+	}
+
+	err = s.store.createDepositTimeline(tx, timeline)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

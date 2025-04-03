@@ -3,10 +3,13 @@ package memberacc
 import (
 	"errors"
 	"money-transfer-demo/pkg/identity/member"
+	"money-transfer-demo/pkg/payment/transaction"
 )
 
 var (
-	ErrMemberAccountAlreadyExists = errors.New("member account already exists")
+	ErrMemberAccountAlreadyExists    = errors.New("member account already exists")
+	ErrMemberAccountNotFound         = errors.New("member account not found")
+	ErrMemberAccountNotEnoughBalance = errors.New("member account not enough balance")
 )
 
 type MemberAccount struct {
@@ -32,4 +35,37 @@ type CreateMemberAccountCommand struct {
 
 func (MemberAccount) TableName() string {
 	return "member_account"
+}
+
+type AdjustMemberAccountBalanceCommand struct {
+	MemberID                  int64
+	TransactionID             string
+	UpdatedBy                 string
+	AdjustedAmount            float64
+	AdjustedOutstandingAmount float64
+	Note                      string
+	TransactionType           transaction.Type
+}
+
+type UpdateMemberAccountBalanceCommand struct {
+	ID                        int64
+	AdjustedAmount            float64
+	AdjustedOutstandingAmount float64
+	UpdatedAt                 string
+}
+
+func VerifyBalance(accountBalance float64, outstandingBalance float64, adjustedAmount float64, adjustedOutstandingAmount float64, transactionType transaction.Type) bool {
+	var status bool = false
+	switch transactionType {
+	case transaction.DepositType:
+
+		status = true
+	case transaction.WithdrawalType:
+		status =
+			(accountBalance >= outstandingBalance) &&
+				(accountBalance+adjustedAmount >= outstandingBalance+adjustedOutstandingAmount) &&
+				(outstandingBalance+adjustedOutstandingAmount >= 0)
+	}
+
+	return status
 }

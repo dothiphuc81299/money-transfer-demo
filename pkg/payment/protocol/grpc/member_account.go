@@ -8,9 +8,6 @@ import (
 	"time"
 
 	"money-transfer-demo/pkg/payment/memberacc"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -22,14 +19,13 @@ func (s *Server) CreateMemberAccount(ctx context.Context, req *payment.CreateMem
 	ctx, cancel := context.WithTimeout(ctx, GrpcRequestTimeout)
 	defer cancel()
 
-	select {
-	case <-ctx.Done():
-		log.Println("❌ Request canceled by client")
-		return nil, status.Error(codes.Canceled, "request was canceled")
-	default:
-	}
+	// select {
+	// case <-ctx.Done():
+	// 	log.Println("❌ Request canceled by client")
+	// 	return nil, status.Error(codes.Canceled, "request was canceled")
+	// default:
+	// }
 
-	log.Println("✅ Successfully processed request")
 	cmd := &memberacc.CreateMemberAccountCommand{
 		MemberID:  req.MemberId,
 		Currency:  member.CurrencyType(req.Currency),

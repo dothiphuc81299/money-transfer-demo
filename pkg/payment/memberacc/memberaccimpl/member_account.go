@@ -46,3 +46,46 @@ func (s *service) Create(ctx context.Context, cmd *memberacc.CreateMemberAccount
 	})
 
 }
+
+func (s *service) GetByMemberID(ctx context.Context, memberID int64) (*memberacc.MemberAccount, error) {
+	result, err := s.store.getMemberAccountByMemberID(ctx, memberID)
+	if err != nil {
+		return nil, err
+	}
+
+	if result == nil {
+		return nil, memberacc.ErrMemberAccountNotFound
+	}
+
+	return result, nil
+}
+
+func (s *service) AdjustMemberAccountBalance(ctx context.Context, tx *gorm.DB, cmd *memberacc.AdjustMemberAccountBalanceCommand) error {
+	memberAccount, err := s.store.getMemberAccountByMemberID(ctx, cmd.MemberID)
+	if err != nil {
+		return err
+	}
+
+	if memberAccount == nil {
+		return memberacc.ErrMemberAccountNotFound
+	}
+
+	ok := memberacc.VerifyBalance(memberAccount.Balance, memberAccount.OutstandingBalance, cmd.AdjustedAmount, cmd.AdjustedOutstandingAmount, cmd.TransactionType)
+	if !ok {
+		return memberacc.ErrMemberAccountNotEnoughBalance
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	err = s.store.updateMemberAccountBalance(tx, &memberacc.UpdateMemberAccountBalanceCommand{
+		ID:                        memberAccount.ID,
+		AdjustedAmount:            cmd.AdjustedAmount,
+		AdjustedOutstandingAmount: cmd.AdjustedOutstandingAmount,
+		UpdatedAt:                 now,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
