@@ -1,0 +1,1 @@
+ALTER TABLE deposit ADD COLUMN bank_account_id BIGINT;

@@ -2,6 +2,7 @@ package memberaccimpl
 
 import (
 	"context"
+	"errors"
 	"money-transfer-demo/pkg/infra/storage/postgres"
 	"money-transfer-demo/pkg/payment/memberacc"
 
@@ -34,4 +35,36 @@ func (s *store) getMemberAccount(ctx context.Context, memberID int64, loginName 
 	}
 
 	return memberAccount, nil
+}
+
+func (s *store) getMemberAccountByMemberID(ctx context.Context, memberID int64) (*memberacc.MemberAccount, error) {
+	var memberAccount *memberacc.MemberAccount
+
+	query := s.db.WithContext(ctx).Where("member_id = ?", memberID)
+	if err := query.First(&memberAccount).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return memberAccount, nil
+}
+
+func (s *store) updateMemberAccountBalance(tx *gorm.DB, cmd *memberacc.UpdateMemberAccountBalanceCommand) error {
+	result := tx.Model(&memberacc.MemberAccount{}).
+		Where("id = ?", cmd.ID).
+		Updates(map[string]interface{}{
+			"balance":             gorm.Expr("balance + ?", cmd.AdjustedAmount),
+			"outstanding_balance": gorm.Expr("outstanding_balance + ?", cmd.AdjustedOutstandingAmount),
+			"updated_at":          cmd.UpdatedAt,
+		})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+
 }

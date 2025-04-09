@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"money-transfer-demo/pkg/infra/storage/postgres"
+	"money-transfer-demo/pkg/payment/bankacc/bankaccimpl"
 	"money-transfer-demo/pkg/payment/config"
 	"money-transfer-demo/pkg/payment/memberacc/memberaccimpl"
 	"money-transfer-demo/pkg/payment/protocol/grpc"
@@ -35,6 +36,8 @@ func NewServer() (*Server, error) {
 
 	memberAccStore := memberaccimpl.NewStore(postgresdb)
 	memberAccSvc := memberaccimpl.NewService(memberAccStore)
+	bankAccountStore := bankaccimpl.NewStore(postgresdb)
+	bankAccSrv := bankaccimpl.NewService(bankAccountStore)
 
 	grpcServer := grpc.NewServer(&grpc.Dependencies{
 		MemberAccountSvc: memberAccSvc,
@@ -43,6 +46,7 @@ func NewServer() (*Server, error) {
 
 	restServer := rest.NewServer(&rest.Dependencies{
 		MemberAccSvc: memberAccSvc,
+		BankAccSrv:   bankAccSrv,
 		Cfg:          cfg,
 	}, cfg)
 

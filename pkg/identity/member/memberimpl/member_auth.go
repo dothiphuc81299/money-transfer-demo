@@ -28,7 +28,7 @@ func (s *service) LoginMember(ctx context.Context, cmd *member.LoginMemberComman
 		return nil, member.ErrInvalidPassword
 	}
 
-	tokenStr, err := token.GenerateJWT(membeDto.ID, membeDto.LoginName)
+	tokenStr, err := token.GenerateJWT(membeDto.ID, membeDto.LoginName, token.Member)
 	if err != nil {
 		return nil, err
 	}

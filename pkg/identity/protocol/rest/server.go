@@ -6,6 +6,7 @@ import (
 	"log"
 	"money-transfer-demo/pkg/identity/config"
 	"money-transfer-demo/pkg/identity/member"
+	"money-transfer-demo/pkg/identity/user"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,7 @@ type Server struct {
 
 type Dependencies struct {
 	MemberSvc member.Service
+	UserSvc   user.Service
 	Cfg       *config.Config
 }
 
@@ -38,6 +40,7 @@ func NewServer(deps *Dependencies, cfg *config.Config) *Server {
 
 func (s *Server) registerRoutes(router *gin.Engine) {
 	s.NewMemberHandler(router)
+	s.NewUserHandler(router)
 }
 
 func (s *Server) Run(ctx context.Context) error {

@@ -12,6 +12,6 @@ CREATE TABLE IF NOT EXISTS member (
     salt VARCHAR(100),
     rands VARCHAR(100),
     address VARCHAR(255),
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at  TIMESTAMP DEFAULT timezone('UTC', now()),
+    updated_at  TIMESTAMP DEFAULT timezone('UTC', now())
 );

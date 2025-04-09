@@ -1,6 +1,7 @@
 package token
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -8,18 +9,27 @@ import (
 
 var jwtSecret = []byte("your-secret-key")
 
+type AccountType int
+
+const (
+	User AccountType = iota + 1
+	Member
+)
+
 type Claims struct {
-	UserID    int64  `json:"user_id"`
-	LoginName string `json:"login_name"`
+	UserID      int64       `json:"user_id"`
+	LoginName   string      `json:"login_name"`
+	AccountType AccountType `json:"account_type"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID int64, loginName string) (string, error) {
+func GenerateJWT(userID int64, loginName string, accountType AccountType) (string, error) {
 	expirationTime := time.Now().Add(2 * time.Hour)
 
 	claims := &Claims{
-		UserID:    userID,
-		LoginName: loginName,
+		UserID:      userID,
+		LoginName:   loginName,
+		AccountType: accountType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -30,7 +40,7 @@ func GenerateJWT(userID int64, loginName string) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-func ValidateJWT(tokenStr string) (*Claims, error) {
+func ValidateJWT1(tokenStr string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
@@ -38,6 +48,23 @@ func ValidateJWT(tokenStr string) (*Claims, error) {
 
 	if err != nil || !token.Valid {
 		return nil, err
+	}
+
+	return claims, nil
+}
+
+func ValidateJWT(tokenStr string, expectedType AccountType) (*Claims, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, err
+	}
+
+	if claims.AccountType != expectedType {
+		return nil, fmt.Errorf("unauthorized: account type mismatch")
 	}
 
 	return claims, nil
