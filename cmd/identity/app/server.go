@@ -5,6 +5,7 @@ import (
 	"log"
 	"money-transfer-demo/pkg/identity/config"
 	"money-transfer-demo/pkg/identity/protocol/rest"
+	"money-transfer-demo/pkg/identity/user/userimpl"
 	"money-transfer-demo/pkg/infra/storage/postgres"
 	"net/http"
 
@@ -40,8 +41,12 @@ func NewServer() (*Server, error) {
 	memberStore := memberimpl.NewStore(postgresdb)
 	memberSvc := memberimpl.NewService(memberStore, paymentClient)
 
+	userStore := userimpl.NewStore(postgresdb)
+	userSvc := userimpl.NewService(userStore)
+
 	restServer := rest.NewServer(&rest.Dependencies{
 		MemberSvc: memberSvc,
+		UserSvc:   userSvc,
 	}, cfg)
 
 	go func() {

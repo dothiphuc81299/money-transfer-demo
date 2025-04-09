@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"money-transfer-demo/pkg/identity/token"
 	"money-transfer-demo/pkg/middleware"
 	"money-transfer-demo/pkg/payment/deposit"
 	"net/http"
@@ -13,10 +14,10 @@ func (s *Server) NewDepositHandler(r *gin.Engine) {
 	groupMem := r.Group("/api/mem/deposit")
 	groupAdmin := r.Group("/api/admin/deposit")
 
-	groupMem.POST("/lbt", s.createDeposit, middleware.AuthMiddleware())
+	groupMem.POST("/lbt", s.createDeposit, middleware.AuthMiddleware(token.Member))
 
-	groupAdmin.PUT("/action/:depositId/lbt/approve", s.approveLBTDeposit)
-	groupAdmin.PUT("/action/:depositId/lbt/reject", s.rejectLBT)
+	groupAdmin.PUT("/action/:depositId/lbt/approve", s.approveLBTDeposit, middleware.AuthMiddleware(token.User))
+	groupAdmin.PUT("/action/:depositId/lbt/reject", s.rejectLBT, middleware.AuthMiddleware(token.User))
 }
 
 func (s *Server) createDeposit(c *gin.Context) {

@@ -77,7 +77,11 @@ func (p *Database) RunMigrations(serviceName string) error {
 		return err
 	}
 
-	version, dirty, _ := m.Version()
+	version, dirty, err := m.Version()
+	if err != nil && err != migrate.ErrNilVersion {
+		return fmt.Errorf("❌ failed to get migration version: %w", err)
+	}
+
 	if dirty {
 		fmt.Println("⚠️ Previous migration encountered an error, please check!")
 		return fmt.Errorf("migration is in an error state (dirty)")

@@ -2,6 +2,7 @@ package rest
 
 import (
 	"money-transfer-demo/pkg/identity/member"
+	"money-transfer-demo/pkg/identity/token"
 	"money-transfer-demo/pkg/middleware"
 	"net/http"
 
@@ -13,7 +14,7 @@ func (s *Server) NewMemberHandler(r *gin.Engine) {
 
 	groupMember.POST("/", s.createMember)
 	groupMember.POST("/login", s.loginMember)
-	groupMember.GET("/detail/:id", s.getMemberByID, middleware.AuthMiddleware())
+	groupMember.GET("/detail/:id", s.getMemberByID, middleware.AuthMiddleware(token.Member))
 }
 
 func (h *Server) createMember(c *gin.Context) {
