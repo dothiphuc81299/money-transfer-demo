@@ -34,6 +34,7 @@ func (s *service) CreateBankAccount(ctx context.Context, cmd *bankacc.CreateBank
 			Status:             bankacc.Active,
 			OutstandingBalance: 0,
 			CreatedAt:          time.Now().UTC().Format(time.RFC3339),
+			UpdatedAt:          time.Now().UTC().Format(time.RFC3339),
 		}
 
 		err := s.store.createBankAccount(tx, entity)

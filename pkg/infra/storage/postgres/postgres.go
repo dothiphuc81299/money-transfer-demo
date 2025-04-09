@@ -78,13 +78,17 @@ func (p *Database) RunMigrations(serviceName string) error {
 	}
 
 	version, dirty, err := m.Version()
-	if err != nil && err != migrate.ErrNilVersion {
-		return fmt.Errorf("❌ failed to get migration version: %w", err)
+	if dirty {
+		forceTo := int(version) - 1
+		fmt.Printf("⚠️ Dirty version detected (%d). Forcing back to version %d\n", version, forceTo)
+
+		if err := m.Force(forceTo); err != nil {
+			return fmt.Errorf("❌ failed to force clean migration version: %w", err)
+		}
 	}
 
-	if dirty {
-		fmt.Println("⚠️ Previous migration encountered an error, please check!")
-		return fmt.Errorf("migration is in an error state (dirty)")
+	if err != nil && err != migrate.ErrNilVersion {
+		return fmt.Errorf("❌ failed to get migration version: %w", err)
 	}
 
 	fmt.Printf("📌 Current migration version: %d\n", version)

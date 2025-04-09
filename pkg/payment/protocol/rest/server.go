@@ -41,6 +41,7 @@ func NewServer(deps *Dependencies, cfg *config.Config) *Server {
 }
 
 func (s *Server) registerRoutes(router *gin.Engine) {
+	s.NewBankAccountHandler(router)
 	s.NewDepositHandler(router)
 }
 

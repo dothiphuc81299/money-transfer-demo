@@ -53,7 +53,7 @@ type CreateBankAccountCommand struct {
 	BankCode           string  `json:"bank_code"`
 	AccountNo          string  `json:"account_no"`
 	Balance            float64 `json:"balance"`
-	OutstandingBalance float64 `json:"outstanding_balance"`
+	OutstandingBalance float64
 }
 
 type AdjustBankAccountBalanceCommand struct {
@@ -64,7 +64,16 @@ type AdjustBankAccountBalanceCommand struct {
 
 func (cmd CreateBankAccountCommand) Validate() error {
 	return validation.ValidateStruct(&cmd,
-		validation.Field(&cmd.BankCode, validation.Required, validation.In(bank_codes)),
+		validation.Field(&cmd.BankCode, validation.Required, validation.In(toInterfaceSlice(bank_codes)...)),
 		validation.Field(&cmd.AccountNo, validation.Required),
 	)
+}
+
+
+func toInterfaceSlice(strs []string) []interface{} {
+	result := make([]interface{}, len(strs))
+	for i, s := range strs {
+		result[i] = s
+	}
+	return result
 }

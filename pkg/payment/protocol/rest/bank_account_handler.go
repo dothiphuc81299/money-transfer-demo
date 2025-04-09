@@ -1,6 +1,8 @@
 package rest
 
 import (
+	"money-transfer-demo/pkg/identity/token"
+	"money-transfer-demo/pkg/middleware"
 	"money-transfer-demo/pkg/payment/bankacc"
 	"net/http"
 
@@ -10,7 +12,7 @@ import (
 func (s *Server) NewBankAccountHandler(r *gin.Engine) {
 	groupAdmin := r.Group("/api/admin/bank-account")
 
-	groupAdmin.POST("/", s.createBankAccount)
+	groupAdmin.POST("/", s.createBankAccount, middleware.AuthMiddleware(token.User))
 }
 
 func (s *Server) createBankAccount(c *gin.Context) {
