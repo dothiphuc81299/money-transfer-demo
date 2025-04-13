@@ -22,7 +22,6 @@ func (s *service) LoginMember(ctx context.Context, cmd *member.LoginMemberComman
 		return nil, member.ErrMemberInactive
 	}
 
-	// TODO check login attempt later. (in enhance version)
 	invalidPassword := password.CheckPassword(cmd.Password, membeDto.Password)
 	if !invalidPassword {
 		return nil, member.ErrInvalidPassword

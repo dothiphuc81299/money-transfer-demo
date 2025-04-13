@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"gorm.io/datatypes"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
@@ -38,24 +40,24 @@ const (
 )
 
 type Deposit struct {
-	ID                int64       `json:"id"`
-	TransactionID     string      `json:"transaction_id"`
-	MemberID          int64       `json:"member_id"`
-	LoginName         string      `json:"login_name"`
-	PaymentMethodCode string      `json:"payment_method_code"`
-	RefCode           string      `json:"ref_code"`
-	Currency          string      `json:"currency"`
-	BankAccount       interface{} `json:"bank_account"`
-	Detail            interface{} `json:"detail"`
-	Amount            float64     `json:"amount"`
-	Status            Status      `json:"status"`
-	CreatedBy         string      `json:"created_by"`
-	UpdatedBy         string      `json:"updated_by"`
-	CreatedAt         string      `json:"created_at"`
-	UpdatedAt         string      `json:"updated_at"`
+	ID                int64          `json:"id"`
+	TransactionID     string         `json:"transaction_id"`
+	MemberID          int64          `json:"member_id"`
+	LoginName         string         `json:"login_name"`
+	PaymentMethodCode string         `json:"payment_method_code"`
+	RefCode           string         `json:"ref_code"`
+	Currency          string         `json:"currency"`
+	BankAccountID     int64          `json:"bank_account_id"`
+	Detail            datatypes.JSON `json:"detail"`
+	Amount            float64        `json:"amount"`
+	Status            Status         `json:"status"`
+	CreatedBy         string         `json:"created_by"`
+	UpdatedBy         string         `json:"updated_by"`
+	CreatedAt         string         `json:"created_at"`
+	UpdatedAt         string         `json:"updated_at"`
 }
 
-func (d *Deposit) TableName() string {
+func (Deposit) TableName() string {
 	return "deposit"
 }
 
@@ -65,12 +67,10 @@ type CreateDepositCommand struct {
 	LoginName         string            `json:"login_name"`
 	PaymentMethodCode PaymentMethodCode `json:"payment_method_code"`
 	RefCode           string            `json:"ref_code"`
-	Currency          string            `json:"currency"`
 	Detail            json.RawMessage   `json:"detail"`
 	BankAccountID     int64             `json:"bank_account_id"`
 	Amount            float64           `json:"amount"`
 	DetailStr         string
-	BankAccountStr    string `json:"bank_account_str"`
 }
 
 type LBTDetail struct {
@@ -79,10 +79,6 @@ type LBTDetail struct {
 	MemberAccountName string `json:"member_account_name"`
 	MemberBankRef     string `json:"member_bank_ref"`
 	MemberFullName    string `json:"member_full_name,omitempty"`
-	BankDescription   string `json:"bank_description"`
-	BankAccountID     int64  `json:"bank_account_id"`
-	BankAccountCode   string `json:"bank_account_code"`
-	BankAccountNo     string `json:"bank_account_no"`
 }
 
 type UpdateDepositStatusCommand struct {
@@ -97,12 +93,12 @@ type UpdateDepositStatusCommand struct {
 }
 
 type DepositTimeline struct {
-	ID                int64       `json:"id"`
-	DepositID         int64       `json:"deposit_id"`
-	Message           string      `json:"message"`
-	AdditionalContent interface{} `json:"additional_content"`
-	CreatedBy         string      `json:"created_by"`
-	CreatedAt         string      `json:"created_at"`
+	ID                int64          `json:"id"`
+	DepositID         int64          `json:"deposit_id"`
+	Message           string         `json:"message"`
+	AdditionalContent datatypes.JSON `json:"additional_content"`
+	CreatedBy         string         `json:"created_by"`
+	CreatedAt         string         `json:"created_at"`
 }
 
 type TimelineDetail struct {
@@ -113,10 +109,9 @@ type TimelineDetail struct {
 	Amount        float64 `json:"amount,omitempty"`
 	PaymentMethod string  `json:"payment_method,omitempty"`
 	BankAccount   string  `json:"bank_account,omitempty"`
-	Bank          string  `json:"bank,omitempty"`
 }
 
-func (d *DepositTimeline) TableName() string {
+func (DepositTimeline) TableName() string {
 	return "deposit_timeline"
 }
 
@@ -124,8 +119,9 @@ func (cmd CreateDepositCommand) Validate() error {
 	return validation.ValidateStruct(&cmd,
 		validation.Field(&cmd.BankAccountID, validation.Required),
 		validation.Field(&cmd.PaymentMethodCode, validation.Required, validation.In(LBT, MOMO, PAYPAL)),
-		validation.Field(&cmd.Amount, validation.Required, validation.Min(0)),
+		validation.Field(&cmd.Amount, validation.Required),
 		validation.Field(&cmd.Detail, validation.Required),
+		validation.Field(&cmd.RefCode, validation.Required),
 	)
 }
 
@@ -150,7 +146,7 @@ func (lbt *LBTDetail) ValidateLBT(detail json.RawMessage) error {
 	return nil
 }
 
-func (cmd *UpdateDepositStatusCommand) Validate() error {
+func (cmd UpdateDepositStatusCommand) Validate() error {
 	return validation.ValidateStruct(&cmd,
 		validation.Field(&cmd.ID, validation.Required),
 		validation.Field(&cmd.Status, validation.Required, validation.In(Successful, Failed)),

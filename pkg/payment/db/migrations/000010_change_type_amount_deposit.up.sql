@@ -1,0 +1,2 @@
+ALTER TABLE deposit
+ALTER COLUMN amount TYPE DECIMAL;

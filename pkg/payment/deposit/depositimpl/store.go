@@ -16,7 +16,8 @@ func NewStore(database postgres.DBConnector) *store {
 }
 
 func (s *store) createDeposit(tx *gorm.DB, deposit *deposit.Deposit) (int64, error) {
-	err := tx.Create(deposit).Error
+	err := tx.Table("deposit").Create(deposit).Error
+
 	if err != nil {
 		return 0, err
 	}
@@ -40,5 +41,5 @@ func (s *store) updateDeposit(tx *gorm.DB, deposit *deposit.Deposit) error {
 }
 
 func (s *store) createDepositTimeline(tx *gorm.DB, timeline *deposit.DepositTimeline) error {
-	return tx.Create(timeline).Error
+	return tx.Table("deposit_timeline").Create(timeline).Error
 }

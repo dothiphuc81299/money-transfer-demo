@@ -9,6 +9,7 @@ import (
 	"money-transfer-demo/pkg/util/generator"
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +19,7 @@ type service struct {
 	bankAccSrv   bankacc.Service
 }
 
-func NewService(store *store, memberAccSrv memberacc.Service,bankAccSrv bankacc.Service) deposit.Service {
+func NewService(store *store, memberAccSrv memberacc.Service, bankAccSrv bankacc.Service) deposit.Service {
 	return &service{store: store, memberAccSrv: memberAccSrv, bankAccSrv: bankAccSrv}
 }
 
@@ -31,28 +32,38 @@ func (s *service) CreateDeposit(ctx context.Context, cmd *deposit.CreateDepositC
 	cmd.LoginName = memberAcc.LoginName
 	cmd.TransactionID = generator.GenerateTransactionID(string(cmd.PaymentMethodCode))
 
-	err = s.getLBTDetails(ctx, cmd)
+	ba, err := s.bankAccSrv.GetBankAccountByID(ctx, cmd.BankAccountID)
+	if err != nil {
+		return err
+	}
+
+	if ba == nil {
+		return deposit.ErrBankAccountNotFound
+	}
+
+	err = s.getLBTDetails(cmd)
 	if err != nil {
 		return err
 	}
 
 	err = s.store.db.Transaction(func(tx *gorm.DB) error {
-		entity := &deposit.Deposit{
+		entity := deposit.Deposit{
 			RefCode:           cmd.RefCode,
 			PaymentMethodCode: string(cmd.PaymentMethodCode),
 			TransactionID:     cmd.TransactionID,
 			Status:            deposit.Processing,
 			MemberID:          cmd.MemberID,
 			LoginName:         cmd.LoginName,
-			Currency:          string(cmd.Currency),
+			Currency:          string(memberAcc.Currency),
 			Amount:            cmd.Amount,
-			Detail:            cmd.DetailStr,
-			BankAccount:       cmd.BankAccountStr,
+			BankAccountID:     cmd.BankAccountID,
 			CreatedAt:         time.Now().UTC().Format(time.RFC3339),
 			CreatedBy:         cmd.LoginName,
+			UpdatedAt:         time.Now().UTC().Format(time.RFC3339),
 		}
 
-		id, err := s.store.createDeposit(tx, entity)
+		entity.Detail = datatypes.JSON(cmd.DetailStr)
+		id, err := s.store.createDeposit(tx, &entity)
 		if err != nil {
 			return err
 		}
@@ -61,7 +72,7 @@ func (s *service) CreateDeposit(ctx context.Context, cmd *deposit.CreateDepositC
 			TransactionID: cmd.TransactionID,
 			Amount:        cmd.Amount,
 			PaymentMethod: string(cmd.PaymentMethodCode),
-			BankAccount:   cmd.BankAccountStr,
+			BankAccount:   ba.BankCode + "-" + ba.AccountNo,
 			RefCode:       cmd.RefCode,
 		})
 		if err != nil {
