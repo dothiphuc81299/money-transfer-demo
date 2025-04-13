@@ -14,10 +14,10 @@ func (s *Server) NewDepositHandler(r *gin.Engine) {
 	groupMem := r.Group("/api/mem/deposit")
 	groupAdmin := r.Group("/api/admin/deposit")
 
-	groupMem.POST("/lbt", s.createDeposit, middleware.AuthMiddleware(token.Member))
+	groupMem.POST("/lbt", middleware.AuthMiddleware(token.Member), s.createDeposit)
 
-	groupAdmin.PUT("/action/:depositId/lbt/approve", s.approveLBTDeposit, middleware.AuthMiddleware(token.User))
-	groupAdmin.PUT("/action/:depositId/lbt/reject", s.rejectLBT, middleware.AuthMiddleware(token.User))
+	groupAdmin.PUT("/action/:depositId/lbt/approve", middleware.AuthMiddleware(token.User), s.approveLBTDeposit)
+	groupAdmin.PUT("/action/:depositId/lbt/reject", middleware.AuthMiddleware(token.User), s.rejectLBT)
 }
 
 func (s *Server) createDeposit(c *gin.Context) {
@@ -42,7 +42,7 @@ func (s *Server) createDeposit(c *gin.Context) {
 
 	err := s.Dependencies.DepositSrv.CreateDeposit(c.Request.Context(), &cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -71,7 +71,7 @@ func (s *Server) approveLBTDeposit(c *gin.Context) {
 
 	err = s.Dependencies.DepositSrv.ApproveLBT(c.Request.Context(), &cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

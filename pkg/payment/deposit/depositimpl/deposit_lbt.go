@@ -12,21 +12,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *service) getLBTDetails(ctx context.Context, cmd *deposit.CreateDepositCommand) error {
+func (s *service) getLBTDetails(cmd *deposit.CreateDepositCommand) error {
 	details := &deposit.LBTDetail{}
 
 	err := details.ValidateLBT(cmd.Detail)
 	if err != nil {
 		return err
-	}
-
-	ba, err := s.bankAccSrv.GetBankAccountByID(ctx, details.BankAccountID)
-	if err != nil {
-		return err
-	}
-
-	if ba == nil {
-		return deposit.ErrBankAccountNotFound
 	}
 
 	dt, err := json.Marshal(details)

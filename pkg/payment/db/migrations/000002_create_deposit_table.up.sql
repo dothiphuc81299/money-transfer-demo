@@ -9,7 +9,7 @@ CREATE TABLE  IF NOT EXISTS deposit (
     currency VARCHAR(10) NOT NULL,
     detail JSONB NOT NULL,
     amount NUMERIC(20, 2) NOT NULL,
-    status VARCHAR(20) NOT NULL,
+    status SMALLINT NOT NULL DEFAULT 1,
     created_by VARCHAR(255),
     updated_by VARCHAR(255),
     created_at TIMESTAMP DEFAULT timezone('UTC', now()),
