@@ -84,7 +84,6 @@ type LBTDetail struct {
 type UpdateDepositStatusCommand struct {
 	ID            int64
 	MemberID      int64
-	BankAccountID int64
 	Status        Status `json:"status"`
 	Note          string `json:"note"`
 	Amount        float64
