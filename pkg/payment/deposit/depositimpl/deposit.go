@@ -3,6 +3,8 @@ package depositimpl
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"money-transfer-demo/pkg/identity/token"
 	"money-transfer-demo/pkg/payment/bankacc"
 	"money-transfer-demo/pkg/payment/deposit"
 	"money-transfer-demo/pkg/payment/memberacc"
@@ -24,6 +26,17 @@ func NewService(store *store, memberAccSrv memberacc.Service, bankAccSrv bankacc
 }
 
 func (s *service) CreateDeposit(ctx context.Context, cmd *deposit.CreateDepositCommand) error {
+	account, ok := ctx.Value("current_account").(*token.AccountData)
+	if !ok || account == nil {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	if account.AccountType != token.Member {
+		return fmt.Errorf("unauthorized: user is not a member")
+	}
+
+	cmd.MemberID = account.ID
+
 	memberAcc, err := s.memberAccSrv.GetByMemberID(ctx, cmd.MemberID)
 	if err != nil {
 		return err

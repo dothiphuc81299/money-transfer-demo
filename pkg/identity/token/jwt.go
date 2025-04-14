@@ -23,8 +23,15 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+type AccountData struct {
+	LoginName   string      `json:"login_name"`
+	ID          int64       `json:"id"`
+	AccountType AccountType `json:"account_type"`
+}
+
+
 func GenerateJWT(userID int64, loginName string, accountType AccountType) (string, error) {
-	expirationTime := time.Now().Add(2 * time.Hour)
+	expirationTime := time.Now().UTC().Add(2 * time.Hour)
 
 	claims := &Claims{
 		UserID:      userID,
@@ -32,7 +39,7 @@ func GenerateJWT(userID int64, loginName string, accountType AccountType) (strin
 		AccountType: accountType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		},
 	}
 

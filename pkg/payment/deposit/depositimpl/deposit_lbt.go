@@ -3,6 +3,8 @@ package depositimpl
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"money-transfer-demo/pkg/identity/token"
 	"money-transfer-demo/pkg/payment/bankacc"
 	"money-transfer-demo/pkg/payment/deposit"
 	"money-transfer-demo/pkg/payment/memberacc"
@@ -10,7 +12,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-
 )
 
 func (s *service) getLBTDetails(cmd *deposit.CreateDepositCommand) error {
@@ -32,7 +33,12 @@ func (s *service) getLBTDetails(cmd *deposit.CreateDepositCommand) error {
 
 func (s *service) ApproveLBT(ctx context.Context, cmd *deposit.UpdateDepositStatusCommand) error {
 	return s.store.db.Transaction(func(tx *gorm.DB) error {
-		// TODO : need to get value login name from authen  
+		account, ok := ctx.Value("current_account").(*token.AccountData)
+		if !ok || account == nil {
+			return fmt.Errorf("user not authenticated")
+		}
+
+		cmd.UpdatedBy = account.LoginName
 
 		dp, err := s.store.getDepositByStatus(tx, cmd.ID, deposit.Processing)
 		if err != nil {
@@ -79,6 +85,13 @@ func (s *service) ApproveLBT(ctx context.Context, cmd *deposit.UpdateDepositStat
 
 func (s *service) RejectLBT(ctx context.Context, cmd *deposit.UpdateDepositStatusCommand) error {
 	return s.store.db.Transaction(func(tx *gorm.DB) error {
+		account, ok := ctx.Value("current_account").(*token.AccountData)
+		if !ok || account == nil {
+			return fmt.Errorf("user not authenticated")
+		}
+
+		cmd.UpdatedBy = account.LoginName
+
 		dp, err := s.store.getDepositByStatus(tx, cmd.ID, deposit.Processing)
 		if err != nil {
 			return err
