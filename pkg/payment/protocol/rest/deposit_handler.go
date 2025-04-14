@@ -23,13 +23,6 @@ func (s *Server) NewDepositHandler(r *gin.Engine) {
 func (s *Server) createDeposit(c *gin.Context) {
 	var cmd deposit.CreateDepositCommand
 
-	memberID, exists := c.Get("member_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	cmd.MemberID = memberID.(int64)
-
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
