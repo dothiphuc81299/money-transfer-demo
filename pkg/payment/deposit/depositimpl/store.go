@@ -1,6 +1,7 @@
 package depositimpl
 
 import (
+	"fmt"
 	"money-transfer-demo/pkg/infra/storage/postgres"
 	"money-transfer-demo/pkg/payment/deposit"
 
@@ -30,14 +31,25 @@ func (s *store) getDepositByStatus(tx *gorm.DB, id int64, status deposit.Status)
 
 	err := tx.Where("id = ? AND status = ?", id, status).First(&deposit).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 
 	return &deposit, nil
 }
 
-func (s *store) updateDeposit(tx *gorm.DB, deposit *deposit.Deposit) error {
-	return tx.Save(deposit).Error
+func (s *store) updateDeposit(tx *gorm.DB, entity *deposit.Deposit) error {
+	if err := tx.Model(&deposit.Deposit{}).Where("id = ?", entity.ID).Updates(map[string]interface{}{
+		"status":     entity.Status,
+		"updated_at": entity.UpdatedAt,
+		"updated_by": entity.UpdatedBy,
+	}).Error; err != nil {
+		return fmt.Errorf("failed to update deposit: %w", err)
+	}
+
+	return nil
 }
 
 func (s *store) createDepositTimeline(tx *gorm.DB, timeline *deposit.DepositTimeline) error {

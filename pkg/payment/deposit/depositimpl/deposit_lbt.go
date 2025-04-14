@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
 )
 
 func (s *service) getLBTDetails(cmd *deposit.CreateDepositCommand) error {
@@ -31,6 +32,8 @@ func (s *service) getLBTDetails(cmd *deposit.CreateDepositCommand) error {
 
 func (s *service) ApproveLBT(ctx context.Context, cmd *deposit.UpdateDepositStatusCommand) error {
 	return s.store.db.Transaction(func(tx *gorm.DB) error {
+		// TODO : need to get value login name from authen  
+
 		dp, err := s.store.getDepositByStatus(tx, cmd.ID, deposit.Processing)
 		if err != nil {
 			return err
@@ -42,6 +45,7 @@ func (s *service) ApproveLBT(ctx context.Context, cmd *deposit.UpdateDepositStat
 
 		cmd.TransactionID = dp.TransactionID
 		cmd.Amount = dp.Amount
+		cmd.MemberID = dp.MemberID
 
 		err = s.updateDetail(tx, cmd)
 		if err != nil {
@@ -49,7 +53,7 @@ func (s *service) ApproveLBT(ctx context.Context, cmd *deposit.UpdateDepositStat
 		}
 
 		err = s.bankAccSrv.AdjustBalance(ctx, tx, &bankacc.AdjustBankAccountBalanceCommand{
-			BankAccountID: cmd.BankAccountID,
+			BankAccountID: dp.BankAccountID,
 			ChangedAmount: cmd.Amount,
 			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 		})

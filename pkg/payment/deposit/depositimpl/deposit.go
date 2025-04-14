@@ -103,7 +103,7 @@ func (s *service) updateDetail(tx *gorm.DB, cmd *deposit.UpdateDepositStatusComm
 		ID:        cmd.ID,
 		Status:    cmd.Status,
 		UpdatedBy: cmd.UpdatedBy,
-		UpdatedAt: now,
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return err
