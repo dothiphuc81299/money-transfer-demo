@@ -8,6 +8,7 @@ import (
 	"money-transfer-demo/pkg/payment/config"
 	"money-transfer-demo/pkg/payment/deposit"
 	"money-transfer-demo/pkg/payment/memberacc"
+	"money-transfer-demo/pkg/payment/withdrawal"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -22,10 +23,11 @@ type Server struct {
 }
 
 type Dependencies struct {
-	MemberAccSvc memberacc.Service
-	DepositSrv   deposit.Service
-	BankAccSrv   bankacc.Service
-	Cfg          *config.Config
+	MemberAccSvc  memberacc.Service
+	DepositSrv    deposit.Service
+	BankAccSrv    bankacc.Service
+	WithdrawalSrv withdrawal.Service
+	Cfg           *config.Config
 }
 
 func NewServer(deps *Dependencies, cfg *config.Config) *Server {

@@ -43,7 +43,6 @@ type AdjustMemberAccountBalanceCommand struct {
 	UpdatedBy                 string
 	AdjustedAmount            float64
 	AdjustedOutstandingAmount float64
-	Note                      string
 	TransactionType           transaction.Type
 }
 

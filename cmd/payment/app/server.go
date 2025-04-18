@@ -40,7 +40,7 @@ func NewServer() (*Server, error) {
 	bankAccountStore := bankaccimpl.NewStore(postgresdb)
 	bankAccSrv := bankaccimpl.NewService(bankAccountStore)
 	depositStore := depositimpl.NewStore(postgresdb)
-	depositSrv := depositimpl.NewService(depositStore, memberAccSvc, bankAccSrv)
+	depositSrv := depositimpl.NewService(depositStore, memberAccSvc, bankAccSrv, cfg)
 
 	grpcServer := grpc.NewServer(&grpc.Dependencies{
 		MemberAccountSvc: memberAccSvc,

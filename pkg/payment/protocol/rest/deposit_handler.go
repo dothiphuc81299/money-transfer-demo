@@ -14,13 +14,15 @@ func (s *Server) NewDepositHandler(r *gin.Engine) {
 	groupMem := r.Group("/api/mem/deposit")
 	groupAdmin := r.Group("/api/admin/deposit")
 
-	groupMem.POST("/lbt", middleware.AuthMiddleware(token.Member), s.createDeposit)
+	groupMem.POST("/lbt", middleware.AuthMiddleware(token.Member), s.createDepositLBT)
+	groupMem.POST("/paypal", middleware.AuthMiddleware(token.Member), s.createDepositPayPal)
+	groupMem.GET("/paypal/return", s.verifyPaypal)
 
 	groupAdmin.PUT("/action/:depositId/lbt/approve", middleware.AuthMiddleware(token.User), s.approveLBTDeposit)
 	groupAdmin.PUT("/action/:depositId/lbt/reject", middleware.AuthMiddleware(token.User), s.rejectLBT)
 }
 
-func (s *Server) createDeposit(c *gin.Context) {
+func (s *Server) createDepositLBT(c *gin.Context) {
 	var cmd deposit.CreateDepositCommand
 
 	if err := c.ShouldBindJSON(&cmd); err != nil {
@@ -33,13 +35,35 @@ func (s *Server) createDeposit(c *gin.Context) {
 		return
 	}
 
-	err := s.Dependencies.DepositSrv.CreateDeposit(c.Request.Context(), &cmd)
+	err := s.Dependencies.DepositSrv.CreateDepositLBT(c.Request.Context(), &cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, nil)
+}
+
+func (s *Server) createDepositPayPal(c *gin.Context) {
+	var cmd deposit.CreateDepositPaypalCommand
+
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := cmd.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := s.Dependencies.DepositSrv.CreateDepositPaypal(c.Request.Context(), &cmd)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func (s *Server) approveLBTDeposit(c *gin.Context) {
@@ -92,6 +116,29 @@ func (s *Server) rejectLBT(c *gin.Context) {
 	}
 
 	err = s.Dependencies.DepositSrv.RejectLBT(c.Request.Context(), &cmd)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, nil)
+}
+
+func (s *Server) verifyPaypal(c *gin.Context) {
+	var cmd deposit.VerifyPaypalCommand
+
+	err := c.ShouldBindQuery(&cmd)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := cmd.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = s.Dependencies.DepositSrv.VerifyPaypal(c.Request.Context(), &cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
