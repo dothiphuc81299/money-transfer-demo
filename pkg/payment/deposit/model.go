@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"money-transfer-demo/pkg/identity/member"
 
 	"gorm.io/datatypes"
 
@@ -11,15 +12,25 @@ import (
 )
 
 var (
-	ErrUnauthorized              = errors.New("unauthorized")
-	ErrInvalidMemberBankCode     = errors.New("invalid member bank code")
-	ErrInvalidMemberAccountNo    = errors.New("invalid member account no")
-	ErrInvalidMemberAccountName  = errors.New("invalid member account name")
-	ErrInvalidCompanyBankCode    = errors.New("invalid company bank code")
-	ErrInvalidCompanyAccountNo   = errors.New("invalid company account no")
-	ErrInvalidCompanyAccountName = errors.New("invalid company account name")
-	ErrDepositNotFound           = errors.New("deposit not found")
-	ErrBankAccountNotFound       = errors.New("bank account not found")
+	ErrUnauthorized                = errors.New("unauthorized")
+	ErrInvalidMemberBankCode       = errors.New("invalid member bank code")
+	ErrInvalidMemberAccountNo      = errors.New("invalid member account no")
+	ErrInvalidMemberAccountName    = errors.New("invalid member account name")
+	ErrInvalidCompanyBankCode      = errors.New("invalid company bank code")
+	ErrInvalidCompanyAccountNo     = errors.New("invalid company account no")
+	ErrInvalidCompanyAccountName   = errors.New("invalid company account name")
+	ErrDepositNotFound             = errors.New("deposit not found")
+	ErrBankAccountNotFound         = errors.New("bank account not found")
+	ErrInvalidCurrency             = errors.New("invalid currency")
+	ErrDepositNotProcessing        = errors.New("deposit not processing")
+	ErrApproveURLNotFound          = errors.New("approve url not found")
+	ErrUnauthorizedUserIsNotMember = errors.New("unauthorized: user is not member")
+	ErrPaymentNotAunthorized       = errors.New("payment not authorized")
+)
+
+const (
+	DefaultUser       = "system"
+	DefaultPaypalNote = "Verify paypal from user"
 )
 
 type Status int
@@ -49,7 +60,9 @@ type Deposit struct {
 	Currency          string         `json:"currency"`
 	BankAccountID     int64          `json:"bank_account_id"`
 	Detail            datatypes.JSON `json:"detail"`
-	Amount            float64        `json:"amount"`
+	GrossAmount       float64        `json:"gross_amount"`
+	NetAmount         float64        `json:"net_amount"`
+	ChargeAmount      float64        `json:"charge_amount"`
 	Status            Status         `json:"status"`
 	CreatedBy         string         `json:"created_by"`
 	UpdatedBy         string         `json:"updated_by"`
@@ -70,6 +83,7 @@ type CreateDepositCommand struct {
 	Detail            json.RawMessage   `json:"detail"`
 	BankAccountID     int64             `json:"bank_account_id"`
 	Amount            float64           `json:"amount"`
+	Currency          string            `json:"currency"`
 	DetailStr         string
 }
 
@@ -86,9 +100,12 @@ type UpdateDepositStatusCommand struct {
 	MemberID      int64
 	Status        Status `json:"status"`
 	Note          string `json:"note"`
-	Amount        float64
+	GrossAmount   float64
+	NetAmount     float64
+	ChargeAmount  float64
 	TransactionID string
 	UpdatedBy     string
+	DetailStr     string
 }
 
 type DepositTimeline struct {
@@ -108,6 +125,35 @@ type TimelineDetail struct {
 	Amount        float64 `json:"amount,omitempty"`
 	PaymentMethod string  `json:"payment_method,omitempty"`
 	BankAccount   string  `json:"bank_account,omitempty"`
+}
+
+type CreateDepositPaypalResult struct {
+	ApproveURL string `json:"approve_url"`
+}
+
+type VerifyPaypalCommand struct {
+	Token   string `form:"token"`
+	PayerID string `form:"PayerID"`
+}
+
+type CreateDepositPaypalCommand struct {
+	TransactionID     string
+	MemberID          int64               `json:"member_id"`
+	LoginName         string              `json:"login_name"`
+	PaymentMethodCode PaymentMethodCode   `json:"payment_method_code"`
+	Amount            float64             `json:"amount"`
+	Currency          member.CurrencyType `json:"currency"`
+}
+
+type PayPalDetail struct {
+	PaypalTransactionID string `json:"paypal_transaction_id"`
+	PayerID             string `json:"payer_id"`
+	PayerEmail          string `json:"payer_email"`
+	PayerName           string `json:"payer_name"` // given name + surname
+	OrderID             string `json:"order_id"`
+	CountryCode         string `json:"country_code"`
+	ShippingName        string `json:"shipping_name"`
+	ShippingAddress     string `json:"shipping_address"`
 }
 
 func (DepositTimeline) TableName() string {
@@ -149,6 +195,21 @@ func (cmd UpdateDepositStatusCommand) Validate() error {
 	return validation.ValidateStruct(&cmd,
 		validation.Field(&cmd.ID, validation.Required),
 		validation.Field(&cmd.Status, validation.Required, validation.In(Successful, Failed)),
+	)
+}
+
+func (cmd VerifyPaypalCommand) Validate() error {
+	return validation.ValidateStruct(&cmd,
+		validation.Field(&cmd.Token, validation.Required),
+		validation.Field(&cmd.PayerID, validation.Required),
+	)
+}
+
+func (cmd CreateDepositPaypalCommand) Validate() error {
+	return validation.ValidateStruct(&cmd,
+		validation.Field(&cmd.PaymentMethodCode, validation.Required, validation.In(PAYPAL)),
+		validation.Field(&cmd.Amount, validation.Required),
+		validation.Field(&cmd.Currency, validation.Required, validation.In(member.VietnamDong, member.UnitedStatesDollar).Error(ErrInvalidCurrency.Error())),
 	)
 }
 
