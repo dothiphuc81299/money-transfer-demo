@@ -1,2 +1,0 @@
-ALTER TABLE member DROP COLUMN rands;
-ALTER TABLE member DROP COLUMN salt;
