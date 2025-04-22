@@ -2,6 +2,8 @@ package withdrawalimpl
 
 import (
 	"context"
+	"fmt"
+	"money-transfer-demo/pkg/infra/storage/postgres"
 	"money-transfer-demo/pkg/payment/withdrawal"
 
 	"gorm.io/gorm"
@@ -11,8 +13,8 @@ type store struct {
 	db *gorm.DB
 }
 
-func New(db *gorm.DB) *store {
-	return &store{db: db}
+func NewStore(database postgres.DBConnector) *store {
+	return &store{db: database.GetDB()}
 }
 
 func (s *store) createWithdrawal(tx *gorm.DB, entity *withdrawal.Withdrawal) (int64, error) {
@@ -120,6 +122,22 @@ func (s *store) getWithdrawal(ctx context.Context, id int64) (*withdrawal.Withdr
 		}
 		return nil, err
 	}
-	
+
 	return &result, nil
+}
+
+func (s *store) updateWithdrawal(tx *gorm.DB, entity *withdrawal.Withdrawal) error {
+	err := tx.Model(&withdrawal.Withdrawal{}).Where("id = ?", entity.ID).Updates(map[string]interface{}{
+		"status":          entity.Status,
+		"bank_account_id": entity.BankAccountID,
+		"charge_amount":   entity.ChargeAmount,
+		"detail":          entity.Detail,
+		"updated_at":      entity.UpdatedAt,
+	}).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to update withdrawal: %w", err)
+	}
+
+	return nil
 }

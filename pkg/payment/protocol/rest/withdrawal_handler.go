@@ -14,10 +14,13 @@ func (s *Server) NewWithdrawalHandler(r *gin.Engine) {
 	groupMem := r.Group("/api/mem/withdrawal")
 	groupAdmin := r.Group("/api/admin/withdrawal")
 
-	groupMem.POST("/", middleware.AuthMiddleware(token.Member), s.createWithdrawal)
+	groupMem.POST("/lbt", middleware.AuthMiddleware(token.Member), s.createWithdrawal)
+
+	groupMem.POST("/paypal", s.createWithdrawalPayPal)
 
 	groupAdmin.GET("/", middleware.AuthMiddleware(token.User), s.searchWithdrawal)
 	groupAdmin.GET("/detail/:id", middleware.AuthMiddleware(token.User), s.getWithdrawalByID)
+	groupAdmin.PUT("/action/:id/review", middleware.AuthMiddleware(token.User), s.reviewWithdrawal)
 	groupAdmin.PUT("/action/:id/approve", middleware.AuthMiddleware(token.User), s.approveWithdrawal)
 	groupAdmin.PUT("/action/:id/reject", middleware.AuthMiddleware(token.User), s.rejectWithdrawal)
 	groupAdmin.PUT("/action/:id/transfer", middleware.AuthMiddleware(token.User), s.transferWithdrawal)
@@ -87,20 +90,26 @@ func (s *Server) getWithdrawalByID(c *gin.Context) {
 }
 
 func (s *Server) approveWithdrawal(c *gin.Context) {
-	idStr := c.Param("id")
-
-	if idStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err = s.Dependencies.WithdrawalSrv.ApproveWithdrawal(c.Request.Context(), id)
+	var cmd withdrawal.UpdateWithdrawalStatusCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	cmd.ID = id
+	cmd.Status = withdrawal.Successful
+	if err := cmd.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = s.Dependencies.WithdrawalSrv.ApproveWithdrawal(c.Request.Context(), &cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -110,20 +119,27 @@ func (s *Server) approveWithdrawal(c *gin.Context) {
 }
 
 func (s *Server) rejectWithdrawal(c *gin.Context) {
-	idStr := c.Param("id")
-
-	if idStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err = s.Dependencies.WithdrawalSrv.RejectWithdrawal(c.Request.Context(), id)
+	var cmd withdrawal.UpdateWithdrawalStatusCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	cmd.ID = id
+
+	cmd.Status = withdrawal.Failed
+	if err := cmd.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = s.Dependencies.WithdrawalSrv.ApproveWithdrawal(c.Request.Context(), &cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -133,22 +149,69 @@ func (s *Server) rejectWithdrawal(c *gin.Context) {
 }
 
 func (s *Server) transferWithdrawal(c *gin.Context) {
-	idStr := c.Param("id")
-	if idStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err = s.Dependencies.WithdrawalSrv.TransferWithdrawal(c.Request.Context(), id)
+	var cmd withdrawal.UpdateWithdrawalStatusCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	cmd.ID = id
+	cmd.Status = withdrawal.Transferring
+	if err := cmd.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = s.Dependencies.WithdrawalSrv.TransferWithdrawal(c.Request.Context(), &cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	c.JSON(http.StatusOK, nil)
+}
+
+func (s *Server) reviewWithdrawal(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var cmd withdrawal.UpdateWithdrawalStatusCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	cmd.ID = id
+	cmd.Status = withdrawal.Reviewing
+	if err := cmd.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = s.Dependencies.WithdrawalSrv.ReviewWithdrawal(c.Request.Context(), &cmd)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, nil)
+}
+
+func (s *Server) createWithdrawalPayPal(c *gin.Context) {
+	err := s.Dependencies.WithdrawalSrv.CreateSinglePayout(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+
 	}
 
 	c.JSON(http.StatusOK, nil)
