@@ -9,8 +9,6 @@ CREATE TABLE IF NOT EXISTS member (
     phone VARCHAR(255) NOT NULL,
     email_verify_status SMALLINT NOT NULL DEFAULT 1,
     phone_verify_status SMALLINT NOT NULL DEFAULT 1,
-    salt VARCHAR(100),
-    rands VARCHAR(100),
     address VARCHAR(255),
     created_at  TIMESTAMP DEFAULT timezone('UTC', now()),
     updated_at  TIMESTAMP DEFAULT timezone('UTC', now())
