@@ -19,6 +19,7 @@ type Status int
 
 const (
 	Pending Status = iota + 1
+	Reviewing
 	Transferring
 	Successful
 	Failed
@@ -41,7 +42,9 @@ type Withdrawal struct {
 	MemberID          int64   `json:"member_id"`
 	LoginName         string  `json:"login_name"`
 	Currency          string  `json:"currency"`
-	Amount            float64 `json:"amount"`
+	GrossAmount       float64 `json:"gross_amount"`
+	ChargeAmount      float64 `json:"charge_amount"`
+	NetAmount         float64 `json:"net_amount"`
 	Detail            string  `json:"detail"`
 	BankAccountID     int64   `json:"bank_account_id"`
 	CreatedAt         string  `json:"created_at"`
@@ -60,7 +63,9 @@ type WithdrawalDTO struct {
 	MemberID          int64   `json:"member_id"`
 	LoginName         string  `json:"login_name"`
 	Currency          string  `json:"currency"`
-	Amount            float64 `json:"amount"`
+	GrossAmount       float64 `json:"gross_amount"`
+	ChargeAmount      float64 `json:"charge_amount"`
+	NetAmount         float64 `json:"net_amount"`
 	MemberFullName    string  `json:"member_full_name"`
 	MemberBankCode    string  `json:"member_bank_code"`
 	MemberAccountNo   string  `json:"member_account_no"`
@@ -81,7 +86,7 @@ type WithdrawalTimeline struct {
 
 type TimelineDetail struct {
 	WithdrawalStatus Status  `json:"withdrawal_status,omitempty"`
-	Remark           string  `json:"remark,omitempty"`
+	Note             string  `json:"note,omitempty"`
 	TransactionID    string  `json:"transaction_id,omitempty"`
 	Amount           float64 `json:"amount,omitempty"`
 	PaymentMethod    string  `json:"payment_method,omitempty"`
@@ -129,9 +134,28 @@ type SearchWithdrawalResult struct {
 	PerPage     int              `json:"per_page"`
 }
 
+type UpdateWithdrawalStatusCommand struct {
+	ID              int64
+	Status          Status
+	BankAccountID   int64 `json:"bank_account_id"`
+	BankAccountCode string
+	Note            string  `json:"note"`
+	ChargeAmount    float64 `json:"charge_amount"`
+	UpdatedBy       string
+	TransactionID   string
+	Detail          string
+}
+
+type CreateWithdrawalTimelineCommand struct {
+	WithdrawalID      int64          `json:"withdrawal_id"`
+	Message           string         `json:"message"`
+	AdditionalContent datatypes.JSON `json:"additional_content"`
+	CreatedBy         string         `json:"created_by"`
+	CreatedAt         string         `json:"created_at"`
+}
+
 func (cmd CreateWithdrawalCommand) Validate() error {
 	return validation.ValidateStruct(&cmd,
-		validation.Field(&cmd.BankAccountID, validation.Required),
 		validation.Field(&cmd.PaymentMethodCode, validation.Required, validation.In(LBT, MOMO, PAYPAL)),
 		validation.Field(&cmd.Amount, validation.Required),
 		validation.Field(&cmd.Detail, validation.Required),
@@ -151,18 +175,21 @@ func (cmd WithdrawalDetail) ValidateWithdrawal(detail json.RawMessage) error {
 	)
 }
 
-func Message(isAuto bool, status Status, name string) string {
+func (cmd UpdateWithdrawalStatusCommand) Validate() error {
+	return validation.ValidateStruct(&cmd,
+		validation.Field(&cmd.ID, validation.Required),
+		validation.Field(&cmd.Note, validation.Required),
+	)
+}
+
+func Message(status Status, name string) string {
 	var message string
 
 	switch status {
 	case Pending:
 		message = "%s created this withdrawal"
 	case Successful:
-		if isAuto {
-			message = "%s marked this withdrawal as successful"
-		} else {
-			message = "%s manually marked this withdrawal as successful"
-		}
+		message = "%s manually marked this withdrawal as successful"
 	case Failed:
 		message = "%s manually marked this withdrawal as failed"
 

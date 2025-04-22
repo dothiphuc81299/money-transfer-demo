@@ -10,6 +10,7 @@ import (
 	"money-transfer-demo/pkg/payment/memberacc/memberaccimpl"
 	"money-transfer-demo/pkg/payment/protocol/grpc"
 	"money-transfer-demo/pkg/payment/protocol/rest"
+	"money-transfer-demo/pkg/payment/withdrawal/withdrawalimpl"
 	"net/http"
 
 	"gorm.io/gorm"
@@ -36,11 +37,14 @@ func NewServer() (*Server, error) {
 	}
 
 	memberAccStore := memberaccimpl.NewStore(postgresdb)
-	memberAccSvc := memberaccimpl.NewService(memberAccStore)
 	bankAccountStore := bankaccimpl.NewStore(postgresdb)
-	bankAccSrv := bankaccimpl.NewService(bankAccountStore)
 	depositStore := depositimpl.NewStore(postgresdb)
+	withdrawalStore := withdrawalimpl.NewStore(postgresdb)
+
+	memberAccSvc := memberaccimpl.NewService(memberAccStore)
+	bankAccSrv := bankaccimpl.NewService(bankAccountStore)
 	depositSrv := depositimpl.NewService(depositStore, memberAccSvc, bankAccSrv, cfg)
+	withdrawalSrv := withdrawalimpl.NewService(withdrawalStore, memberAccSvc, bankAccSrv, cfg)
 
 	grpcServer := grpc.NewServer(&grpc.Dependencies{
 		MemberAccountSvc: memberAccSvc,
@@ -48,10 +52,11 @@ func NewServer() (*Server, error) {
 	})
 
 	restServer := rest.NewServer(&rest.Dependencies{
-		MemberAccSvc: memberAccSvc,
-		BankAccSrv:   bankAccSrv,
-		DepositSrv:   depositSrv,
-		Cfg:          cfg,
+		MemberAccSvc:  memberAccSvc,
+		BankAccSrv:    bankAccSrv,
+		DepositSrv:    depositSrv,
+		WithdrawalSrv: withdrawalSrv,
+		Cfg:           cfg,
 	}, cfg)
 
 	go func() {
