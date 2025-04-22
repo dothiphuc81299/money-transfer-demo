@@ -1,1 +1,0 @@
-ALTER TABLE withdrawal ADD COLUMN bank_account_id BIGINT  NULL

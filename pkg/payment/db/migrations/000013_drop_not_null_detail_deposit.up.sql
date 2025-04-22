@@ -1,1 +1,0 @@
-ALTER TABLE deposit ALTER COLUMN detail DROP NOT NULL;
