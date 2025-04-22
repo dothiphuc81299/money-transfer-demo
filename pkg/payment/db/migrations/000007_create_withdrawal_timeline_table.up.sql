@@ -1,6 +1,6 @@
-CREATE TABLE deposit_timeline (
+CREATE TABLE IF NOT EXISTS withdrawal_timeline (
     id SERIAL PRIMARY KEY,
-    deposit_id BIGINT NOT NULL,
+    withdrawal_id BIGINT NOT NULL,
     message VARCHAR(255) NOT NULL,
     additional_content JSONB ,
     created_by VARCHAR(255),

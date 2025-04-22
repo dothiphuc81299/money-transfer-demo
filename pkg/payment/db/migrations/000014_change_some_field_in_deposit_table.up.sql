@@ -1,3 +1,0 @@
-ALTER TABLE deposit RENAME COLUMN amount to gross_amount;
-ALTER TABLE deposit ADD COLUMN net_amount NUMERIC(20, 2) NULL DEFAULT 0;
-ALTER TABLE deposit ADD COLUMN charge_amount NUMERIC(20, 2) NULL DEFAULT 0;
