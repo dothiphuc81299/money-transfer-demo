@@ -149,6 +149,7 @@ func (s *service) ApproveLBT(ctx context.Context, cmd *deposit.UpdateDepositStat
 		err = s.bankAccSrv.AdjustBalance(ctx, tx, &bankacc.AdjustBankAccountBalanceCommand{
 			BankAccountID: dp.BankAccountID,
 			ChangedAmount: cmd.GrossAmount,
+			Currency:      dp.Currency,
 			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 		})
 		if err != nil {

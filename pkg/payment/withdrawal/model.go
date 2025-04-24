@@ -1,7 +1,6 @@
 package withdrawal
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -35,20 +34,21 @@ const (
 )
 
 type Withdrawal struct {
-	ID                int64   `json:"id"`
-	PaymentMethodCode string  `json:"payment_method_code"`
-	TransactionID     string  `json:"transaction_id"`
-	Status            Status  `json:"status"`
-	MemberID          int64   `json:"member_id"`
-	LoginName         string  `json:"login_name"`
-	Currency          string  `json:"currency"`
-	GrossAmount       float64 `json:"gross_amount"`
-	ChargeAmount      float64 `json:"charge_amount"`
-	NetAmount         float64 `json:"net_amount"`
-	Detail            string  `json:"detail"`
-	BankAccountID     int64   `json:"bank_account_id"`
-	CreatedAt         string  `json:"created_at"`
-	UpdatedAt         string  `json:"updated_at"`
+	ID                     int64   `json:"id"`
+	MemberPaymentAccountID int64   `json:"member_payment_account_id"`
+	PaymentMethodCode      string  `json:"payment_method_code"`
+	TransactionID          string  `json:"transaction_id"`
+	Status                 Status  `json:"status"`
+	MemberID               int64   `json:"member_id"`
+	LoginName              string  `json:"login_name"`
+	Currency               string  `json:"currency"`
+	GrossAmount            float64 `json:"gross_amount"`
+	ChargeAmount           float64 `json:"charge_amount"`
+	NetAmount              float64 `json:"net_amount"`
+	Detail                 string  `json:"detail"`
+	BankAccountID          int64   `json:"bank_account_id"`
+	CreatedAt              string  `json:"created_at"`
+	UpdatedAt              string  `json:"updated_at"`
 }
 
 func (Withdrawal) TableName() string {
@@ -56,23 +56,31 @@ func (Withdrawal) TableName() string {
 }
 
 type WithdrawalDTO struct {
-	ID                int64   `json:"id"`
-	PaymentMethodCode string  `json:"payment_method_code"`
-	TransactionID     string  `json:"transaction_id"`
-	Status            Status  `json:"status"`
-	MemberID          int64   `json:"member_id"`
-	LoginName         string  `json:"login_name"`
-	Currency          string  `json:"currency"`
-	GrossAmount       float64 `json:"gross_amount"`
-	ChargeAmount      float64 `json:"charge_amount"`
-	NetAmount         float64 `json:"net_amount"`
-	MemberFullName    string  `json:"member_full_name"`
-	MemberBankCode    string  `json:"member_bank_code"`
-	MemberAccountNo   string  `json:"member_account_no"`
-	MemberAccountName string  `json:"member_account_name"`
-	BankAccountID     int64   `json:"bank_account_id"`
-	CreatedAt         string  `json:"created_at"`
-	UpdatedAt         string  `json:"updated_at"`
+	ID                     int64   `json:"id"`
+	PaymentMethodCode      string  `json:"payment_method_code"`
+	MemberPaymentAccountID int64   `json:"member_payment_account_id"`
+	TransactionID          string  `json:"transaction_id"`
+	Status                 Status  `json:"status"`
+	MemberID               int64   `json:"member_id"`
+	LoginName              string  `json:"login_name"`
+	Currency               string  `json:"currency"`
+	GrossAmount            float64 `json:"gross_amount"`
+	ChargeAmount           float64 `json:"charge_amount"`
+	NetAmount              float64 `json:"net_amount"`
+	BankAccountID          int64   `json:"bank_account_id"`
+	CreatedAt              string  `json:"created_at"`
+	UpdatedAt              string  `json:"updated_at"`
+
+	//for local bank
+	MemberFullName    string `json:"member_full_name,omitempty"`
+	MemberBankCode    string `json:"member_bank_code,omitempty"`
+	MemberAccountNo   string `json:"member_account_no,omitempty"`
+	MemberAccountName string `json:"member_account_name,omitempty"`
+
+	// for paypal
+	PaypalEmail    string `json:"paypal_email,omitempty"`
+	PayoutBatchID  string `json:"payout_batch_id,omitempty"`
+	MemberCurrency string `json:"member_currency,omitempty"`
 }
 
 type WithdrawalTimeline struct {
@@ -91,6 +99,7 @@ type TimelineDetail struct {
 	Amount           float64 `json:"amount,omitempty"`
 	PaymentMethod    string  `json:"payment_method,omitempty"`
 	Bank             string  `json:"bank,omitempty"`
+	PaypalEmail      string  `json:"paypal_email,omitempty"`
 }
 
 func (WithdrawalTimeline) TableName() string {
@@ -98,24 +107,29 @@ func (WithdrawalTimeline) TableName() string {
 }
 
 type CreateWithdrawalCommand struct {
-	PaymentMethodCode string `json:"payment_method_code"`
-	TransactionID     string
-	MemberID          int64
-	LoginName         string
-	Currency          string          `json:"currency"`
-	Amount            float64         `json:"amount"`
-	Detail            json.RawMessage `json:"detail"`
-	BankAccountID     int64           `json:"bank_account_id"`
-	DetailStr         string
-	CreatedBy         string
-	MemberBankCode    string
+	PaymentMethodCode      string `json:"payment_method_code"`
+	MemberPaymentAccountID int64  `json:"member_payment_account_id"`
+	TransactionID          string
+	MemberID               int64
+	LoginName              string
+	Currency               string  `json:"currency"`
+	Amount                 float64 `json:"amount"`
+	BankAccountID          int64   `json:"bank_account_id"`
+	DetailStr              string
+	CreatedBy              string
+	MemberBankCode         string
+	PaypalEmail            string
+	MemberCurrency         string
 }
 
 type WithdrawalDetail struct {
-	MemberFullName    string `json:"member_full_name"`
-	MemberBankCode    string `json:"member_bank_code"`
-	MemberAccountNo   string `json:"member_account_no"`
-	MemberAccountName string `json:"member_account_name"`
+	MemberFullName    string `json:"member_full_name,omitempty"`
+	MemberBankCode    string `json:"member_bank_code,omitempty"`
+	MemberAccountNo   string `json:"member_account_no,omitempty"`
+	MemberAccountName string `json:"member_account_name,omitempty"`
+	PaypalEmail       string `json:"paypal_email,omitempty"`
+	PayoutBatchID     string `json:"payout_batch_id,omitempty"`
+	MemberCurrency    string `json:"member_currency,omitempty"`
 }
 
 type SearchWithdrawalQuery struct {
@@ -141,6 +155,7 @@ type UpdateWithdrawalStatusCommand struct {
 	BankAccountCode string
 	Note            string  `json:"note"`
 	ChargeAmount    float64 `json:"charge_amount"`
+	NetAmount       float64
 	UpdatedBy       string
 	TransactionID   string
 	Detail          string
@@ -156,22 +171,9 @@ type CreateWithdrawalTimelineCommand struct {
 
 func (cmd CreateWithdrawalCommand) Validate() error {
 	return validation.ValidateStruct(&cmd,
-		validation.Field(&cmd.PaymentMethodCode, validation.Required, validation.In(LBT, MOMO, PAYPAL)),
+		validation.Field(&cmd.MemberPaymentAccountID, validation.Required),
+		validation.Field(&cmd.PaymentMethodCode, validation.Required, validation.In(string(LBT), string(MOMO), string(PAYPAL))),
 		validation.Field(&cmd.Amount, validation.Required),
-		validation.Field(&cmd.Detail, validation.Required),
-	)
-}
-
-func (cmd WithdrawalDetail) ValidateWithdrawal(detail json.RawMessage) error {
-	err := json.Unmarshal(detail, &cmd)
-	if err != nil {
-		return err
-	}
-
-	return validation.ValidateStruct(&cmd,
-		validation.Field(&cmd.MemberBankCode, validation.Required),
-		validation.Field(&cmd.MemberAccountNo, validation.Required),
-		validation.Field(&cmd.MemberAccountName, validation.Required),
 	)
 }
 
@@ -192,7 +194,8 @@ func Message(status Status, name string) string {
 		message = "%s manually marked this withdrawal as successful"
 	case Failed:
 		message = "%s manually marked this withdrawal as failed"
-
+	case Reviewing:
+		message = "%s manually marked this withdrawal as Reviewing"
 	case Transferring:
 		message = "%s manually marked this withdrawal as Transferring"
 

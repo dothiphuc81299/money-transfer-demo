@@ -33,7 +33,7 @@ func (s *Server) createUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, nil)
+	c.JSON(http.StatusCreated, "user created")
 }
 
 func (s *Server) loginUser(c *gin.Context) {

@@ -41,7 +41,7 @@ func (s *Server) createDepositLBT(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, nil)
+	c.JSON(http.StatusOK, "deposit created")
 }
 
 func (s *Server) createDepositPayPal(c *gin.Context) {
@@ -117,7 +117,7 @@ func (s *Server) rejectLBT(c *gin.Context) {
 
 	err = s.Dependencies.DepositSrv.RejectLBT(c.Request.Context(), &cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -140,7 +140,7 @@ func (s *Server) verifyPaypal(c *gin.Context) {
 
 	err = s.Dependencies.DepositSrv.VerifyPaypal(c.Request.Context(), &cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

@@ -31,6 +31,7 @@ func (s *Server) CreateMemberAccount(ctx context.Context, req *payment.CreateMem
 		Currency:  member.CurrencyType(req.Currency),
 		LoginName: req.LoginName,
 		Status:    member.Status(req.Status),
+		FullName:  req.FullName,
 	}
 
 	err := s.dependencies.MemberAccountSvc.Create(ctx, cmd)

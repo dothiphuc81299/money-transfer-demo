@@ -2,6 +2,7 @@ package memberaccimpl
 
 import (
 	"context"
+	"fmt"
 	"money-transfer-demo/pkg/payment/memberacc"
 	"time"
 
@@ -33,6 +34,7 @@ func (s *service) Create(ctx context.Context, cmd *memberacc.CreateMemberAccount
 			LoginName:          cmd.LoginName,
 			Currency:           cmd.Currency,
 			Status:             cmd.Status,
+			FullName:           cmd.FullName,
 			Balance:            0,
 			OutstandingBalance: 0,
 			CreatedAt:          now,
@@ -69,6 +71,9 @@ func (s *service) AdjustMemberAccountBalance(ctx context.Context, tx *gorm.DB, c
 	if memberAccount == nil {
 		return memberacc.ErrMemberAccountNotFound
 	}
+
+	fmt.Println("memberAccount", memberAccount.Balance, memberAccount.OutstandingBalance)
+	fmt.Println("cmd", cmd.AdjustedAmount, cmd.AdjustedOutstandingAmount)
 
 	ok := memberacc.VerifyBalance(memberAccount.Balance, memberAccount.OutstandingBalance, cmd.AdjustedAmount, cmd.AdjustedOutstandingAmount, cmd.TransactionType)
 	if !ok {

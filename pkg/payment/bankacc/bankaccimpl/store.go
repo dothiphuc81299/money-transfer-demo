@@ -31,6 +31,12 @@ func (s *store) getBankAccount(ctx context.Context, id int64) (*bankacc.BankAcco
 	var bankAccount bankacc.BankAccount
 
 	err := s.db.WithContext(ctx).Where("id = ?", id).First(&bankAccount).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
 	return &bankAccount, err
 }
 

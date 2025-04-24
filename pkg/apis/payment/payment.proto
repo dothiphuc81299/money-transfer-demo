@@ -9,6 +9,7 @@ message CreateMemberAccountCommand {
     string login_name =2;
     string currency =3;
     int64 status =4;
+    string full_name =5;
 }
 
 message CreateMemberAccountResponse {

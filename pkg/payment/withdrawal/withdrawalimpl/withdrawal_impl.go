@@ -7,6 +7,7 @@ import (
 	"money-transfer-demo/pkg/payment/bankacc"
 	"money-transfer-demo/pkg/payment/config"
 	"money-transfer-demo/pkg/payment/memberacc"
+	"money-transfer-demo/pkg/payment/memberpayacc"
 	"money-transfer-demo/pkg/payment/transaction"
 	"money-transfer-demo/pkg/payment/withdrawal"
 	"money-transfer-demo/pkg/util/generator"
@@ -17,14 +18,15 @@ import (
 )
 
 type service struct {
-	store        *store
-	memberAccSrv memberacc.Service
-	bankAccSrv   bankacc.Service
-	cfg          *config.Config
+	store                 *store
+	memberAccSrv          memberacc.Service
+	bankAccSrv            bankacc.Service
+	memberPaymentAccStore memberpayacc.Store
+	cfg                   *config.Config
 }
 
-func NewService(store *store, memberAccSrv memberacc.Service, bankAccSrv bankacc.Service, cfg *config.Config) withdrawal.Service {
-	return &service{store: store, memberAccSrv: memberAccSrv, bankAccSrv: bankAccSrv, cfg: cfg}
+func NewService(store *store, memberAccSrv memberacc.Service, bankAccSrv bankacc.Service, memberPaymentAccStore memberpayacc.Store, cfg *config.Config) withdrawal.Service {
+	return &service{store: store, memberAccSrv: memberAccSrv, bankAccSrv: bankAccSrv, memberPaymentAccStore: memberPaymentAccStore, cfg: cfg}
 }
 
 func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWithdrawalCommand) error {
@@ -48,16 +50,27 @@ func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWi
 	cmd.LoginName = member.LoginName
 	cmd.TransactionID = generator.GenerateTransactionID(string(cmd.PaymentMethodCode))
 
-	err = s.getWithdrawalDetails(cmd)
+	cmd.MemberCurrency = string(member.Currency)
+	err = s.getWithdrawalDetails(ctx, cmd)
 	if err != nil {
 		return err
 	}
 
+	if cmd.PaymentMethodCode == string(withdrawal.LBT) {
+		cmd.Currency = string(member.Currency)
+	}
+
 	return s.store.db.Transaction(func(tx *gorm.DB) error {
+		var adjustAmount float64
+		if cmd.PaymentMethodCode == string(withdrawal.PAYPAL) && cmd.Currency != string(member.Currency) {
+			adjustAmount = cmd.Amount * s.cfg.ExchangeVNDRate
+		} else {
+			adjustAmount = cmd.Amount
+		}
+
 		err = s.memberAccSrv.AdjustMemberAccountBalance(ctx, tx, &memberacc.AdjustMemberAccountBalanceCommand{
 			MemberID:                  cmd.MemberID,
-			AdjustedOutstandingAmount: -cmd.Amount,
-			AdjustedAmount:            cmd.Amount,
+			AdjustedOutstandingAmount: adjustAmount,
 			TransactionID:             cmd.TransactionID,
 			TransactionType:           transaction.WithdrawalType,
 		})
@@ -66,17 +79,18 @@ func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWi
 		}
 
 		entity := &withdrawal.Withdrawal{
-			MemberID:          cmd.MemberID,
-			LoginName:         cmd.LoginName,
-			TransactionID:     cmd.TransactionID,
-			PaymentMethodCode: cmd.PaymentMethodCode,
-			GrossAmount:       cmd.Amount,
-			NetAmount:         cmd.Amount,
-			Detail:            cmd.DetailStr,
-			Status:            withdrawal.Pending,
-			CreatedAt:         time.Now().UTC().Format(time.RFC3339),
-			UpdatedAt:         time.Now().UTC().Format(time.RFC3339),
-			Currency:          string(member.Currency),
+			MemberID:               cmd.MemberID,
+			LoginName:              cmd.LoginName,
+			TransactionID:          cmd.TransactionID,
+			PaymentMethodCode:      cmd.PaymentMethodCode,
+			MemberPaymentAccountID: cmd.MemberPaymentAccountID,
+			GrossAmount:            cmd.Amount,
+			NetAmount:              cmd.Amount,
+			Detail:                 cmd.DetailStr,
+			Status:                 withdrawal.Pending,
+			CreatedAt:              time.Now().UTC().Format(time.RFC3339),
+			UpdatedAt:              time.Now().UTC().Format(time.RFC3339),
+			Currency:               cmd.Currency,
 		}
 		id, err := s.store.createWithdrawal(tx, entity)
 		if err != nil {
@@ -89,6 +103,7 @@ func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWi
 			PaymentMethod:    cmd.PaymentMethodCode,
 			Amount:           cmd.Amount,
 			Bank:             cmd.MemberBankCode,
+			PaypalEmail:      cmd.PaypalEmail,
 		})
 		if err != nil {
 			return err
@@ -109,16 +124,25 @@ func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWi
 
 }
 
-func (s *service) getWithdrawalDetails(cmd *withdrawal.CreateWithdrawalCommand) error {
-	var details withdrawal.WithdrawalDetail
+func (s *service) getWithdrawalDetails(ctx context.Context, cmd *withdrawal.CreateWithdrawalCommand) error {
+	var detail withdrawal.WithdrawalDetail
 
-	err := details.ValidateWithdrawal(cmd.Detail)
+	mpa, err := s.memberPaymentAccStore.Get(ctx, cmd.MemberPaymentAccountID)
 	if err != nil {
 		return err
 	}
 
-	cmd.MemberBankCode = details.MemberBankCode
-	dt, err := json.Marshal(details)
+	detail.MemberBankCode = mpa.MemberBankCode
+	detail.MemberAccountNo = mpa.MemberAccountNo
+	detail.MemberAccountName = mpa.MemberAccountName
+	detail.MemberFullName = mpa.MemberFullName
+	detail.PaypalEmail = mpa.PaypalEmail
+	detail.MemberCurrency = cmd.MemberCurrency
+
+	cmd.MemberBankCode = detail.MemberBankCode
+	cmd.PaypalEmail = detail.PaypalEmail
+
+	dt, err := json.Marshal(detail)
 	if err != nil {
 		return err
 	}
@@ -184,9 +208,12 @@ func (s *service) ApproveWithdrawal(ctx context.Context, cmd *withdrawal.UpdateW
 	}
 
 	cmd.TransactionID = result.TransactionID
+	cmd.BankAccountID = result.BankAccountID
+	cmd.NetAmount = result.NetAmount
+	cmd.ChargeAmount = result.ChargeAmount
 
 	return s.store.db.Transaction(func(tx *gorm.DB) error {
-		err = s.updateWithdrawal(cmd)
+		err = s.updateWithdrawal(tx, result, cmd)
 		if err != nil {
 			return err
 		}
@@ -194,7 +221,8 @@ func (s *service) ApproveWithdrawal(ctx context.Context, cmd *withdrawal.UpdateW
 		if cmd.BankAccountID != 0 {
 			err := s.bankAccSrv.AdjustBalance(ctx, tx, &bankacc.AdjustBankAccountBalanceCommand{
 				BankAccountID: cmd.BankAccountID,
-				ChangedAmount: -result.GrossAmount,
+				Currency:      result.Currency,
+				ChangedAmount: -result.NetAmount,
 				UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 			})
 			if err != nil {
@@ -202,7 +230,15 @@ func (s *service) ApproveWithdrawal(ctx context.Context, cmd *withdrawal.UpdateW
 			}
 		}
 
-		//TODO save member payment account
+		err = s.memberPaymentAccStore.UpdateVerifyStatus(tx, &memberpayacc.MemberPayAccount{
+			ID:           result.MemberPaymentAccountID,
+			VerifyStatus: memberpayacc.Verified,
+			UpdatedBy:    cmd.UpdatedBy,
+			UpdatedAt:    time.Now().UTC().Format(time.RFC3339),
+		})
+		if err != nil {
+			return err
+		}
 
 		err = s.memberAccSrv.AdjustMemberAccountBalance(ctx, tx, &memberacc.AdjustMemberAccountBalanceCommand{
 			MemberID:                  result.MemberID,
@@ -249,13 +285,29 @@ func (s *service) RejectWithdrawal(ctx context.Context, cmd *withdrawal.UpdateWi
 	}
 
 	cmd.TransactionID = result.TransactionID
+	cmd.BankAccountID = result.BankAccountID
+	cmd.NetAmount = result.NetAmount
+	cmd.ChargeAmount = result.ChargeAmount
 
-	err = s.updateWithdrawal(cmd)
-	if err != nil {
-		return err
-	}
+	return s.store.db.Transaction(func(tx *gorm.DB) error {
+		err = s.updateWithdrawal(tx, result, cmd)
+		if err != nil {
+			return err
+		}
 
-	return nil
+		err = s.memberAccSrv.AdjustMemberAccountBalance(ctx, tx, &memberacc.AdjustMemberAccountBalanceCommand{
+			MemberID:                  result.MemberID,
+			AdjustedOutstandingAmount: -result.GrossAmount,
+			UpdatedBy:                 cmd.UpdatedBy,
+			TransactionID:             cmd.TransactionID,
+			TransactionType:           transaction.WithdrawalType,
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (s *service) TransferWithdrawal(ctx context.Context, cmd *withdrawal.UpdateWithdrawalStatusCommand) error {
@@ -284,24 +336,35 @@ func (s *service) TransferWithdrawal(ctx context.Context, cmd *withdrawal.Update
 	}
 
 	cmd.TransactionID = result.TransactionID
+	if cmd.ChargeAmount > 0 {
+		cmd.NetAmount = result.GrossAmount - cmd.ChargeAmount
+	}
+
 	if cmd.BankAccountID > 0 {
 		_, err := s.bankAccSrv.GetBankAccountByID(ctx, cmd.BankAccountID)
 		if err != nil {
 			return err
 		}
-
 	}
 
-	if result.PaymentMethodCode != "LBT" {
-		//TODO implement create withdrawl for other method
-	}
+	err = s.store.db.Transaction(func(tx *gorm.DB) error {
+		if result.PaymentMethodCode == string(withdrawal.PAYPAL) {
+			err = s.createSinglePaypal(ctx, tx, result, cmd)
+			if err != nil {
+				return err
+			}
+		}
 
-	err = s.updateWithdrawal(cmd)
+		err = s.updateWithdrawal(tx, result, cmd)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
-
-	// TODO update for other method
 
 	return nil
 }
@@ -313,7 +376,6 @@ func (s *service) ReviewWithdrawal(ctx context.Context, cmd *withdrawal.UpdateWi
 	}
 
 	cmd.UpdatedBy = account.LoginName
-
 	result, err := s.store.getWithdrawal(ctx, cmd.ID)
 	if err != nil {
 		return err
@@ -332,8 +394,30 @@ func (s *service) ReviewWithdrawal(ctx context.Context, cmd *withdrawal.UpdateWi
 	}
 
 	cmd.TransactionID = result.TransactionID
+	cmd.NetAmount = result.NetAmount
 
-	return s.updateWithdrawal(cmd)
+	detail := &withdrawal.WithdrawalDetail{
+		MemberBankCode:    result.MemberBankCode,
+		MemberAccountNo:   result.MemberAccountNo,
+		MemberAccountName: result.MemberAccountName,
+		MemberFullName:    result.MemberFullName,
+		MemberCurrency:    result.Currency,
+	}
+
+	dt, err := json.Marshal(detail)
+	if err != nil {
+		return err
+	}
+
+	cmd.Detail = string(dt)
+
+	return s.store.db.Transaction(func(tx *gorm.DB) error {
+		err = s.updateWithdrawal(tx, result, cmd)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (s *service) validateStatus(w *withdrawal.WithdrawalDTO, previousStatuses map[withdrawal.Status]struct{}) error {
@@ -345,43 +429,58 @@ func (s *service) validateStatus(w *withdrawal.WithdrawalDTO, previousStatuses m
 	return withdrawal.ErrWithdrawalNotFound
 }
 
-func (s *service) updateWithdrawal(cmd *withdrawal.UpdateWithdrawalStatusCommand) error {
-	return s.store.db.Transaction(func(tx *gorm.DB) error {
-		now := time.Now().UTC().Format(time.RFC3339)
-		err := s.store.updateWithdrawal(tx, &withdrawal.Withdrawal{
-			ID:            cmd.ID,
-			BankAccountID: cmd.BankAccountID,
-			Detail:        cmd.Detail,
-			ChargeAmount:  cmd.ChargeAmount,
-			Status:        cmd.Status,
-			UpdatedAt:     now,
-		})
-		if err != nil {
-			return err
-		}
+func (s *service) updateWithdrawal(tx *gorm.DB, entity *withdrawal.WithdrawalDTO, cmd *withdrawal.UpdateWithdrawalStatusCommand) error {
+	now := time.Now().UTC().Format(time.RFC3339)
 
-		message := withdrawal.Message(cmd.Status, cmd.UpdatedBy)
-		detail, err := json.Marshal(&withdrawal.TimelineDetail{
-			WithdrawalStatus: cmd.Status,
-			Note:             cmd.Note,
-			TransactionID:    cmd.TransactionID,
-		})
-		if err != nil {
-			return err
-		}
+	wDetail := &withdrawal.WithdrawalDetail{
+		MemberBankCode:    entity.MemberBankCode,
+		MemberAccountNo:   entity.MemberAccountNo,
+		MemberAccountName: entity.MemberAccountName,
+		MemberFullName:    entity.MemberFullName,
+		MemberCurrency:    entity.Currency,
+		PaypalEmail:       entity.PaypalEmail,
+		PayoutBatchID:     entity.PayoutBatchID,
+	}
 
-		err = s.store.createWithdrawalTimeline(tx, &withdrawal.WithdrawalTimeline{
-			WithdrawalID:      cmd.ID,
-			Message:           message,
-			AdditionalContent: datatypes.JSON(detail),
-			CreatedAt:         time.Now().UTC().Format(time.RFC3339Nano),
-			CreatedBy:         cmd.UpdatedBy,
-		})
-		if err != nil {
-			return err
-		}
+	dt, err := json.Marshal(wDetail)
+	if err != nil {
+		return err
+	}
 
-		return nil
+	cmd.Detail = string(dt)
+	err = s.store.updateWithdrawal(tx, &withdrawal.Withdrawal{
+		ID:            cmd.ID,
+		BankAccountID: cmd.BankAccountID,
+		Detail:        cmd.Detail,
+		ChargeAmount:  cmd.ChargeAmount,
+		NetAmount:     cmd.NetAmount,
+		Status:        cmd.Status,
+		UpdatedAt:     now,
 	})
+	if err != nil {
+		return err
+	}
 
+	message := withdrawal.Message(cmd.Status, cmd.UpdatedBy)
+	detail, err := json.Marshal(&withdrawal.TimelineDetail{
+		WithdrawalStatus: cmd.Status,
+		Note:             cmd.Note,
+		TransactionID:    cmd.TransactionID,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = s.store.createWithdrawalTimeline(tx, &withdrawal.WithdrawalTimeline{
+		WithdrawalID:      cmd.ID,
+		Message:           message,
+		AdditionalContent: datatypes.JSON(detail),
+		CreatedAt:         time.Now().UTC().Format(time.RFC3339Nano),
+		CreatedBy:         cmd.UpdatedBy,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

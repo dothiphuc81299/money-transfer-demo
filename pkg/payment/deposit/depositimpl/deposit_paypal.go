@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"money-transfer-demo/pkg/identity/member"
 	"money-transfer-demo/pkg/identity/token"
 	"money-transfer-demo/pkg/payment/deposit"
 	"money-transfer-demo/pkg/payment/memberacc"
@@ -266,15 +267,15 @@ func (s *service) VerifyPaypal(ctx context.Context, cmd *deposit.VerifyPaypalCom
 			return err
 		}
 
-		if string(mem.Currency) != dp.Currency && dp.Currency == "USD" {
-			cmdUpdate.GrossAmount = cmdUpdate.GrossAmount * 25
+		if string(mem.Currency) != dp.Currency && dp.Currency == string(member.UnitedStatesDollar) {
+			cmdUpdate.NetAmount = cmdUpdate.NetAmount * s.cfg.ExchangeVNDRate
 		}
 
 		if cmdUpdate.Status == deposit.Successful {
 			err = s.memberAccSrv.AdjustMemberAccountBalance(ctx, tx, &memberacc.AdjustMemberAccountBalanceCommand{
 				MemberID:        dp.MemberID,
 				UpdatedBy:       deposit.DefaultUser,
-				AdjustedAmount:  cmdUpdate.GrossAmount,
+				AdjustedAmount:  cmdUpdate.NetAmount,
 				TransactionID:   cmdUpdate.TransactionID,
 				TransactionType: transaction.DepositType,
 			})

@@ -14,9 +14,7 @@ func (s *Server) NewWithdrawalHandler(r *gin.Engine) {
 	groupMem := r.Group("/api/mem/withdrawal")
 	groupAdmin := r.Group("/api/admin/withdrawal")
 
-	groupMem.POST("/lbt", middleware.AuthMiddleware(token.Member), s.createWithdrawal)
-
-	groupMem.POST("/paypal", s.createWithdrawalPayPal)
+	groupMem.POST("/", middleware.AuthMiddleware(token.Member), s.createWithdrawal)
 
 	groupAdmin.GET("/", middleware.AuthMiddleware(token.User), s.searchWithdrawal)
 	groupAdmin.GET("/detail/:id", middleware.AuthMiddleware(token.User), s.getWithdrawalByID)
@@ -42,7 +40,7 @@ func (s *Server) createWithdrawal(c *gin.Context) {
 
 	err = s.Dependencies.WithdrawalSrv.CreateWithdrawal(c.Request.Context(), &cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -132,14 +130,13 @@ func (s *Server) rejectWithdrawal(c *gin.Context) {
 	}
 
 	cmd.ID = id
-
 	cmd.Status = withdrawal.Failed
 	if err := cmd.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err = s.Dependencies.WithdrawalSrv.ApproveWithdrawal(c.Request.Context(), &cmd)
+	err = s.Dependencies.WithdrawalSrv.RejectWithdrawal(c.Request.Context(), &cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -201,17 +198,6 @@ func (s *Server) reviewWithdrawal(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
-
-	c.JSON(http.StatusOK, nil)
-}
-
-func (s *Server) createWithdrawalPayPal(c *gin.Context) {
-	err := s.Dependencies.WithdrawalSrv.CreateSinglePayout(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-
 	}
 
 	c.JSON(http.StatusOK, nil)

@@ -16,6 +16,7 @@ type MemberAccount struct {
 	ID                 int64               `json:"id"`
 	MemberID           int64               `json:"member_id"`
 	LoginName          string              `json:"login_name"`
+	FullName           string              `json:"full_name"`
 	Status             member.Status       `json:"status"`
 	Currency           member.CurrencyType `json:"currency"`
 	Balance            float64             `json:"balance"`
@@ -26,6 +27,7 @@ type MemberAccount struct {
 
 type CreateMemberAccountCommand struct {
 	MemberID           int64               `json:"member_id"`
+	FullName           string              `json:"full_name"`
 	LoginName          string              `json:"login_name"`
 	Status             member.Status       `json:"status"`
 	Currency           member.CurrencyType `json:"currency"`

@@ -10,5 +10,5 @@ type Service interface {
 	RejectWithdrawal(ctx context.Context, cmd *UpdateWithdrawalStatusCommand) error
 	TransferWithdrawal(ctx context.Context, cmd *UpdateWithdrawalStatusCommand) error
 	ReviewWithdrawal(ctx context.Context, cmd *UpdateWithdrawalStatusCommand) error
-	CreateSinglePayout(ctx context.Context) error
+	Run(ctx context.Context) error
 }
