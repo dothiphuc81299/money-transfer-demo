@@ -133,8 +133,6 @@ func (s *store) getWithdrawal(ctx context.Context, id int64) (*withdrawal.Withdr
 	return &result, nil
 }
 
-/*************  ✨ Windsurf Command ⭐  *************/
-/*******  93c68713-78ad-42b3-a054-fa72fabe66d2  *******/
 func (s *store) updateWithdrawal(tx *gorm.DB, entity *withdrawal.Withdrawal) error {
 	err := tx.Model(&withdrawal.Withdrawal{}).Where("id = ?", entity.ID).Updates(map[string]interface{}{
 		"status":          entity.Status,
