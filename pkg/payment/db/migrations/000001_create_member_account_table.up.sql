@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS member_account (
     status SMALLINT NOT NULL DEFAULT 1,
     currency VARCHAR(50) NOT NULL,
     balance DECIMAL NOT NULL,
+    full_name VARCHAR(50)  NULL,
     outstanding_balance DECIMAL NOT NULL,
     created_at  TIMESTAMP DEFAULT timezone('UTC', now()),
     updated_at  TIMESTAMP DEFAULT timezone('UTC', now())

@@ -8,6 +8,7 @@ import (
 	"money-transfer-demo/pkg/payment/config"
 	"money-transfer-demo/pkg/payment/deposit/depositimpl"
 	"money-transfer-demo/pkg/payment/memberacc/memberaccimpl"
+	"money-transfer-demo/pkg/payment/memberpayacc/memberpayaccimpl"
 	"money-transfer-demo/pkg/payment/protocol/grpc"
 	"money-transfer-demo/pkg/payment/protocol/rest"
 	"money-transfer-demo/pkg/payment/withdrawal/withdrawalimpl"
@@ -40,11 +41,13 @@ func NewServer() (*Server, error) {
 	bankAccountStore := bankaccimpl.NewStore(postgresdb)
 	depositStore := depositimpl.NewStore(postgresdb)
 	withdrawalStore := withdrawalimpl.NewStore(postgresdb)
+	memberPayccStore := memberpayaccimpl.NewStore(postgresdb)
 
 	memberAccSvc := memberaccimpl.NewService(memberAccStore)
 	bankAccSrv := bankaccimpl.NewService(bankAccountStore)
+	memberPayAccSrv := memberpayaccimpl.NewService(memberPayccStore, memberAccSvc)
 	depositSrv := depositimpl.NewService(depositStore, memberAccSvc, bankAccSrv, cfg)
-	withdrawalSrv := withdrawalimpl.NewService(withdrawalStore, memberAccSvc, bankAccSrv, cfg)
+	withdrawalSrv := withdrawalimpl.NewService(withdrawalStore, memberAccSvc, bankAccSrv, memberPayccStore, cfg)
 
 	grpcServer := grpc.NewServer(&grpc.Dependencies{
 		MemberAccountSvc: memberAccSvc,
@@ -52,11 +55,12 @@ func NewServer() (*Server, error) {
 	})
 
 	restServer := rest.NewServer(&rest.Dependencies{
-		MemberAccSvc:  memberAccSvc,
-		BankAccSrv:    bankAccSrv,
-		DepositSrv:    depositSrv,
-		WithdrawalSrv: withdrawalSrv,
-		Cfg:           cfg,
+		MemberAccSvc:    memberAccSvc,
+		BankAccSrv:      bankAccSrv,
+		DepositSrv:      depositSrv,
+		WithdrawalSrv:   withdrawalSrv,
+		MemberPayAccSrv: memberPayAccSrv,
+		Cfg:             cfg,
 	}, cfg)
 
 	go func() {
@@ -69,6 +73,10 @@ func NewServer() (*Server, error) {
 		if err := restServer.Run(context.Background()); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("❌ Failed to start server: %v", err)
 		}
+	}()
+
+	go func() {
+		withdrawalSrv.Run(context.Background())
 	}()
 
 	return &Server{

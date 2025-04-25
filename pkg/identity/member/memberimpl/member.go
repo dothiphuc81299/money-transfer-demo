@@ -89,6 +89,7 @@ func (s *service) CreateMember(ctx context.Context, cmd *member.CreateMemberComm
 			LoginName: cmd.LoginName,
 			Currency:  string(cmd.Currency),
 			Status:    int64(member.Active),
+			FullName:  cmd.FullName,
 		})
 		if err != nil {
 			return err

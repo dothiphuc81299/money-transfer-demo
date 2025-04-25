@@ -32,6 +32,7 @@ func (s *service) CreateBankAccount(ctx context.Context, cmd *bankacc.CreateBank
 			AccountNo:          cmd.AccountNo,
 			Balance:            cmd.Balance,
 			Status:             bankacc.Active,
+			Currency:           cmd.Currency,
 			OutstandingBalance: 0,
 			CreatedAt:          time.Now().UTC().Format(time.RFC3339),
 			UpdatedAt:          time.Now().UTC().Format(time.RFC3339),
@@ -61,6 +62,13 @@ func (s *service) AdjustBalance(ctx context.Context, tx *gorm.DB, cmd *bankacc.A
 		return bankacc.ErrBankAccountNotActive
 	}
 
+	if result.Currency != cmd.Currency {
+		return bankacc.ErrInvalidCurrency
+	}
+
+	if result.Balance < -cmd.ChangedAmount {
+		return bankacc.ErrInsufficientBalance
+	}
 	err = s.store.adjustBankAccountBalance(tx, cmd)
 	if err != nil {
 		return err

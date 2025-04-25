@@ -31,9 +31,9 @@ func (s *Server) createBankAccount(c *gin.Context) {
 
 	err = s.Dependencies.BankAccSrv.CreateBankAccount(c.Request.Context(), &cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, nil)
+	c.JSON(http.StatusOK, "bank account created")
 }
