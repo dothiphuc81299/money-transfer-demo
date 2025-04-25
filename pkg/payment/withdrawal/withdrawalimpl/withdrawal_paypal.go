@@ -66,12 +66,15 @@ func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 
 		client.SetAccessToken(accessToken.Token)
 		for _, w := range allWithdrawal {
+			fmt.Println("payputbbatcj", w.PayoutBatchID)
 			batch, err := client.GetPayout(ctx, w.PayoutBatchID)
 			if err != nil {
 				log.Fatal("Failed to fetch payout status:", err)
+				continue
 			}
 
-			if batch.BatchHeader.BatchStatus == "COMPLETED" {
+			//TODO miss info net amount, charge_amount 
+			if batch.BatchHeader.BatchStatus == "SUCCESS" {
 				err = s.store.updateStatus(tx, &withdrawal.Withdrawal{
 					ID:        w.ID,
 					Status:    withdrawal.Successful,
@@ -140,9 +143,6 @@ func (s *service) createSinglePaypal(ctx context.Context, tx *gorm.DB, entity *w
 	client.SetAccessToken(accessToken.Token)
 
 	amount := fmt.Sprintf("%.2f", entity.GrossAmount)
-	if err != nil {
-		return err
-	}
 
 	payout := paypal.Payout{
 		SenderBatchHeader: &paypal.SenderBatchHeader{
@@ -157,7 +157,6 @@ func (s *service) createSinglePaypal(ctx context.Context, tx *gorm.DB, entity *w
 					Currency: entity.Currency,
 				},
 				Note: cmd.Note,
-				//SenderItemID: "Optional Item ID",
 			},
 		},
 	}
@@ -168,28 +167,24 @@ func (s *service) createSinglePaypal(ctx context.Context, tx *gorm.DB, entity *w
 	}
 
 	detail := &withdrawal.WithdrawalDetail{
-		PaypalEmail:   entity.PaypalEmail,
-		PayoutBatchID: payoutResp.BatchHeader.PayoutBatchID,
+		PaypalEmail:    entity.PaypalEmail,
+		MemberCurrency: entity.Currency,
+		PayoutBatchID:  payoutResp.BatchHeader.PayoutBatchID,
 	}
 
 	detailStr, err := json.Marshal(detail)
 	if err != nil {
-
+		return err
 	}
 
 	err = s.store.updateDetail(tx, &withdrawal.Withdrawal{
-		ID:     entity.ID,
-		Detail: string(detailStr),
+		ID:        entity.ID,
+		Detail:    string(detailStr),
+		UpdatedAt: time.Now().Format(time.RFC3339),
 	})
 	if err != nil {
 		return err
 	}
 
-	batch, err := client.GetPayout(ctx, payoutResp.BatchHeader.PayoutBatchID)
-	if err != nil {
-		log.Fatal("Failed to fetch payout status:", err)
-	}
-
-	fmt.Println("Payout Status:", batch.BatchHeader.BatchStatus)
 	return nil
 }

@@ -348,6 +348,11 @@ func (s *service) TransferWithdrawal(ctx context.Context, cmd *withdrawal.Update
 	}
 
 	err = s.store.db.Transaction(func(tx *gorm.DB) error {
+		err = s.updateWithdrawal(tx, result, cmd)
+		if err != nil {
+			return err
+		}
+
 		if result.PaymentMethodCode == string(withdrawal.PAYPAL) {
 			err = s.createSinglePaypal(ctx, tx, result, cmd)
 			if err != nil {
@@ -355,10 +360,6 @@ func (s *service) TransferWithdrawal(ctx context.Context, cmd *withdrawal.Update
 			}
 		}
 
-		err = s.updateWithdrawal(tx, result, cmd)
-		if err != nil {
-			return err
-		}
 		return nil
 	})
 
@@ -395,21 +396,6 @@ func (s *service) ReviewWithdrawal(ctx context.Context, cmd *withdrawal.UpdateWi
 
 	cmd.TransactionID = result.TransactionID
 	cmd.NetAmount = result.NetAmount
-
-	detail := &withdrawal.WithdrawalDetail{
-		MemberBankCode:    result.MemberBankCode,
-		MemberAccountNo:   result.MemberAccountNo,
-		MemberAccountName: result.MemberAccountName,
-		MemberFullName:    result.MemberFullName,
-		MemberCurrency:    result.Currency,
-	}
-
-	dt, err := json.Marshal(detail)
-	if err != nil {
-		return err
-	}
-
-	cmd.Detail = string(dt)
 
 	return s.store.db.Transaction(func(tx *gorm.DB) error {
 		err = s.updateWithdrawal(tx, result, cmd)

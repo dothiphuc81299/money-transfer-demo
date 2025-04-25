@@ -119,6 +119,8 @@ func (s *store) getWithdrawal(ctx context.Context, id int64) (*withdrawal.Withdr
 			detail->>'member_bank_code' as member_bank_code,
 			detail->>'member_account_no' as member_account_no,
 			detail->>'member_account_name' as member_account_name,
+			detail->>'paypal_email' as paypal_email,
+			detail->>'payout_batch_id' as payout_batch_id,
 			updated_at,
 			bank_account_id
 			`).Where("id =?", id).Scan(&result).Error
