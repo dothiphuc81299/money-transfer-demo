@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/plutov/paypal/v4"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -107,6 +108,27 @@ func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 					return err
 				}
 
+				message := withdrawal.Message(withdrawal.Successful, "system")
+				detail, err := json.Marshal(&withdrawal.TimelineDetail{
+					WithdrawalStatus: withdrawal.Successful,
+					Note:             "auto ",
+					TransactionID:    w.TransactionID,
+				})
+				if err != nil {
+					return err
+				}
+
+				err = s.store.createWithdrawalTimeline(tx, &withdrawal.WithdrawalTimeline{
+					WithdrawalID:      w.ID,
+					Message:           message,
+					AdditionalContent: datatypes.JSON(detail),
+					CreatedAt:         time.Now().UTC().Format(time.RFC3339),
+					CreatedBy:         "system",
+				})
+				if err != nil {
+					return err
+				}
+
 				err = s.memberPaymentAccStore.UpdateVerifyStatus(tx, &memberpayacc.MemberPayAccount{
 					ID:           w.MemberPaymentAccountID,
 					VerifyStatus: memberpayacc.Verified,
@@ -117,8 +139,6 @@ func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 					return err
 				}
 
-				fmt.Println("adjust amount", adjustAmount)
-				fmt.Println("adjustedOutstandingAmount", adjustedOutstandingAmount)
 				err = s.memberAccSrv.AdjustMemberAccountBalance(ctx, tx, &memberacc.AdjustMemberAccountBalanceCommand{
 					MemberID:                  w.MemberID,
 					UpdatedBy:                 "system",

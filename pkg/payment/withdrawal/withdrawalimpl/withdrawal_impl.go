@@ -463,7 +463,7 @@ func (s *service) updateWithdrawal(tx *gorm.DB, entity *withdrawal.WithdrawalDTO
 		WithdrawalID:      cmd.ID,
 		Message:           message,
 		AdditionalContent: datatypes.JSON(detail),
-		CreatedAt:         time.Now().UTC().Format(time.RFC3339Nano),
+		CreatedAt:         time.Now().UTC().Format(time.RFC3339),
 		CreatedBy:         cmd.UpdatedBy,
 	})
 	if err != nil {
