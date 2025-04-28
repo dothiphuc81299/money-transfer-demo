@@ -121,6 +121,7 @@ func (s *store) getWithdrawal(ctx context.Context, id int64) (*withdrawal.Withdr
 			detail->>'member_account_name' as member_account_name,
 			detail->>'paypal_email' as paypal_email,
 			detail->>'payout_batch_id' as payout_batch_id,
+			detail->>'member_currency' as member_currency,
 			updated_at,
 			bank_account_id
 			`).Where("id =?", id).Scan(&result).Error
@@ -190,10 +191,13 @@ func (s *store) updateDetail(tx *gorm.DB, entity *withdrawal.Withdrawal) error {
 	return nil
 }
 
-func (s *store) updateStatus(tx *gorm.DB, entity *withdrawal.Withdrawal) error {
+func (s *store) updatePaypal(tx *gorm.DB, entity *withdrawal.Withdrawal) error {
 	err := tx.Model(&withdrawal.Withdrawal{}).Where("id = ?", entity.ID).Updates(map[string]interface{}{
-		"status":     entity.Status,
-		"updated_at": entity.UpdatedAt,
+		"status":        entity.Status,
+		"gross_amount":  entity.GrossAmount,
+		"net_amount":    entity.NetAmount,
+		"charge_amount": entity.ChargeAmount,
+		"updated_at":    entity.UpdatedAt,
 	}).Error
 
 	if err != nil {

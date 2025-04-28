@@ -205,3 +205,8 @@ func Message(status Status, name string) string {
 
 	return fmt.Sprintf(message, name)
 }
+
+func SafeEstimatePaypalFee(amount float64) float64 {
+	estimatedPercentage := 0.05
+	return amount * estimatedPercentage
+}

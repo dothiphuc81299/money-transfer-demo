@@ -9,9 +9,11 @@ import (
 	"money-transfer-demo/pkg/payment/memberpayacc"
 	"money-transfer-demo/pkg/payment/transaction"
 	"money-transfer-demo/pkg/payment/withdrawal"
+	"strconv"
 	"time"
 
 	"github.com/plutov/paypal/v4"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +22,7 @@ func (s *service) Run(ctx context.Context) error {
 	defer fmt.Println("Stop running withdrawal paypal")
 
 	go func() {
-		ticker := time.NewTicker(2 * time.Minute)
+		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 
 		for {
@@ -66,19 +68,62 @@ func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 
 		client.SetAccessToken(accessToken.Token)
 		for _, w := range allWithdrawal {
-			fmt.Println("payputbbatcj", w.PayoutBatchID)
 			batch, err := client.GetPayout(ctx, w.PayoutBatchID)
 			if err != nil {
 				log.Fatal("Failed to fetch payout status:", err)
 				continue
 			}
 
-			//TODO miss info net amount, charge_amount 
 			if batch.BatchHeader.BatchStatus == "SUCCESS" {
-				err = s.store.updateStatus(tx, &withdrawal.Withdrawal{
-					ID:        w.ID,
-					Status:    withdrawal.Successful,
-					UpdatedAt: time.Now().Format(time.RFC3339),
+				floatVal, err := strconv.ParseFloat(batch.BatchHeader.Amount.Value, 64)
+				if err != nil {
+					return err
+				}
+
+				floatFee, err := strconv.ParseFloat(batch.BatchHeader.Fees.Value, 64)
+				if err != nil {
+					return err
+				}
+
+				adjustedOutstandingAmount := withdrawal.SafeEstimatePaypalFee(w.GrossAmount) + w.GrossAmount
+
+				var adjustAmount float64
+				if w.Currency != string(w.MemberCurrency) {
+					adjustedOutstandingAmount = adjustedOutstandingAmount * s.cfg.ExchangeVNDRate
+					adjustAmount = (floatVal + floatFee) * s.cfg.ExchangeVNDRate
+				} else {
+					adjustedOutstandingAmount = adjustedOutstandingAmount
+					adjustAmount = floatVal + floatFee
+				}
+
+				err = s.store.updatePaypal(tx, &withdrawal.Withdrawal{
+					ID:           w.ID,
+					Status:       withdrawal.Successful,
+					GrossAmount:  floatVal + floatFee,
+					NetAmount:    floatVal,
+					ChargeAmount: floatFee,
+					UpdatedAt:    time.Now().Format(time.RFC3339),
+				})
+				if err != nil {
+					return err
+				}
+
+				message := withdrawal.Message(withdrawal.Successful, "system")
+				detail, err := json.Marshal(&withdrawal.TimelineDetail{
+					WithdrawalStatus: withdrawal.Successful,
+					Note:             "auto ",
+					TransactionID:    w.TransactionID,
+				})
+				if err != nil {
+					return err
+				}
+
+				err = s.store.createWithdrawalTimeline(tx, &withdrawal.WithdrawalTimeline{
+					WithdrawalID:      w.ID,
+					Message:           message,
+					AdditionalContent: datatypes.JSON(detail),
+					CreatedAt:         time.Now().UTC().Format(time.RFC3339),
+					CreatedBy:         "system",
 				})
 				if err != nil {
 					return err
@@ -94,18 +139,11 @@ func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 					return err
 				}
 
-				var adjustAmount float64
-				if w.Currency != string(w.MemberCurrency) {
-					adjustAmount = w.GrossAmount * s.cfg.ExchangeVNDRate
-				} else {
-					adjustAmount = w.GrossAmount
-				}
-
 				err = s.memberAccSrv.AdjustMemberAccountBalance(ctx, tx, &memberacc.AdjustMemberAccountBalanceCommand{
 					MemberID:                  w.MemberID,
 					UpdatedBy:                 "system",
 					AdjustedAmount:            -adjustAmount,
-					AdjustedOutstandingAmount: -adjustAmount,
+					AdjustedOutstandingAmount: -adjustedOutstandingAmount,
 					TransactionID:             w.TransactionID,
 					TransactionType:           transaction.WithdrawalType,
 				})
@@ -168,7 +206,7 @@ func (s *service) createSinglePaypal(ctx context.Context, tx *gorm.DB, entity *w
 
 	detail := &withdrawal.WithdrawalDetail{
 		PaypalEmail:    entity.PaypalEmail,
-		MemberCurrency: entity.Currency,
+		MemberCurrency: entity.MemberCurrency,
 		PayoutBatchID:  payoutResp.BatchHeader.PayoutBatchID,
 	}
 
