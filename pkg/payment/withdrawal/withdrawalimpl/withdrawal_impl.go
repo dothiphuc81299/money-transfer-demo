@@ -63,7 +63,9 @@ func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWi
 	return s.store.db.Transaction(func(tx *gorm.DB) error {
 		var adjustAmount float64
 		if cmd.PaymentMethodCode == string(withdrawal.PAYPAL) && cmd.Currency != string(member.Currency) {
-			adjustAmount = cmd.Amount * s.cfg.ExchangeVNDRate
+			fee := withdrawal.SafeEstimatePaypalFee(cmd.Amount)
+			estimateAmount := cmd.Amount + fee
+			adjustAmount = estimateAmount * s.cfg.ExchangeVNDRate
 		} else {
 			adjustAmount = cmd.Amount
 		}
@@ -423,7 +425,7 @@ func (s *service) updateWithdrawal(tx *gorm.DB, entity *withdrawal.WithdrawalDTO
 		MemberAccountNo:   entity.MemberAccountNo,
 		MemberAccountName: entity.MemberAccountName,
 		MemberFullName:    entity.MemberFullName,
-		MemberCurrency:    entity.Currency,
+		MemberCurrency:    entity.MemberCurrency,
 		PaypalEmail:       entity.PaypalEmail,
 		PayoutBatchID:     entity.PayoutBatchID,
 	}
