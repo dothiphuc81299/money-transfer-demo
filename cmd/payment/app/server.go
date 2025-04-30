@@ -11,6 +11,7 @@ import (
 	"money-transfer-demo/pkg/payment/memberpayacc/memberpayaccimpl"
 	"money-transfer-demo/pkg/payment/protocol/grpc"
 	"money-transfer-demo/pkg/payment/protocol/rest"
+	"money-transfer-demo/pkg/payment/transfer/transferimpl"
 	"money-transfer-demo/pkg/payment/withdrawal/withdrawalimpl"
 	"net/http"
 
@@ -42,12 +43,14 @@ func NewServer() (*Server, error) {
 	depositStore := depositimpl.NewStore(postgresdb)
 	withdrawalStore := withdrawalimpl.NewStore(postgresdb)
 	memberPayccStore := memberpayaccimpl.NewStore(postgresdb)
+	transferStore := transferimpl.NewStore(postgresdb)
 
 	memberAccSvc := memberaccimpl.NewService(memberAccStore)
 	bankAccSrv := bankaccimpl.NewService(bankAccountStore)
 	memberPayAccSrv := memberpayaccimpl.NewService(memberPayccStore, memberAccSvc)
 	depositSrv := depositimpl.NewService(depositStore, memberAccSvc, bankAccSrv, cfg)
 	withdrawalSrv := withdrawalimpl.NewService(withdrawalStore, memberAccSvc, bankAccSrv, memberPayccStore, cfg)
+	transferSrv := transferimpl.NewService(memberAccSvc, transferStore)
 
 	grpcServer := grpc.NewServer(&grpc.Dependencies{
 		MemberAccountSvc: memberAccSvc,
@@ -60,6 +63,7 @@ func NewServer() (*Server, error) {
 		DepositSrv:      depositSrv,
 		WithdrawalSrv:   withdrawalSrv,
 		MemberPayAccSrv: memberPayAccSrv,
+		TransferSrv:     transferSrv,
 		Cfg:             cfg,
 	}, cfg)
 

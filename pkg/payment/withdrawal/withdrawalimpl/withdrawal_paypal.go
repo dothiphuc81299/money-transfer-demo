@@ -144,7 +144,6 @@ func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 					UpdatedBy:                 "system",
 					AdjustedAmount:            -adjustAmount,
 					AdjustedOutstandingAmount: -adjustedOutstandingAmount,
-					TransactionID:             w.TransactionID,
 					TransactionType:           transaction.WithdrawalType,
 				})
 				if err != nil {

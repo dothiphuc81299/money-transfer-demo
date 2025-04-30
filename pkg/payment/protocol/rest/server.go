@@ -9,6 +9,7 @@ import (
 	"money-transfer-demo/pkg/payment/deposit"
 	"money-transfer-demo/pkg/payment/memberacc"
 	"money-transfer-demo/pkg/payment/memberpayacc"
+	"money-transfer-demo/pkg/payment/transfer"
 	"money-transfer-demo/pkg/payment/withdrawal"
 	"net/http"
 
@@ -29,6 +30,7 @@ type Dependencies struct {
 	BankAccSrv      bankacc.Service
 	WithdrawalSrv   withdrawal.Service
 	MemberPayAccSrv memberpayacc.Service
+	TransferSrv     transfer.Service
 	Cfg             *config.Config
 }
 
@@ -49,6 +51,7 @@ func (s *Server) registerRoutes(router *gin.Engine) {
 	s.NewDepositHandler(router)
 	s.NewWithdrawalHandler(router)
 	s.NewMemberPaymentAccountHandler(router)
+	s.NewTransferHandler(router)
 }
 
 func (s *Server) Run(ctx context.Context) error {

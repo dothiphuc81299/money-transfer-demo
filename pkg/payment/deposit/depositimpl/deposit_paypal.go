@@ -276,7 +276,6 @@ func (s *service) VerifyPaypal(ctx context.Context, cmd *deposit.VerifyPaypalCom
 				MemberID:        dp.MemberID,
 				UpdatedBy:       deposit.DefaultUser,
 				AdjustedAmount:  cmdUpdate.NetAmount,
-				TransactionID:   cmdUpdate.TransactionID,
 				TransactionType: transaction.DepositType,
 			})
 			if err != nil {

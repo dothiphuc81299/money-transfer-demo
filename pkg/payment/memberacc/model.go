@@ -41,7 +41,6 @@ func (MemberAccount) TableName() string {
 
 type AdjustMemberAccountBalanceCommand struct {
 	MemberID                  int64
-	TransactionID             string
 	UpdatedBy                 string
 	AdjustedAmount            float64
 	AdjustedOutstandingAmount float64
@@ -61,7 +60,7 @@ func VerifyBalance(accountBalance float64, outstandingBalance float64, adjustedA
 	case transaction.DepositType:
 
 		status = true
-	case transaction.WithdrawalType:
+	case transaction.WithdrawalType, transaction.TransferType:
 		status =
 			(accountBalance >= outstandingBalance) &&
 				(accountBalance+adjustedAmount >= outstandingBalance+adjustedOutstandingAmount) &&
