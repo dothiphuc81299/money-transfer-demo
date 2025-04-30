@@ -160,7 +160,6 @@ func (s *service) ApproveLBT(ctx context.Context, cmd *deposit.UpdateDepositStat
 			MemberID:        cmd.MemberID,
 			UpdatedBy:       cmd.UpdatedBy,
 			AdjustedAmount:  cmd.GrossAmount,
-			TransactionID:   cmd.TransactionID,
 			TransactionType: transaction.DepositType,
 		})
 		if err != nil {

@@ -73,7 +73,6 @@ func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWi
 		err = s.memberAccSrv.AdjustMemberAccountBalance(ctx, tx, &memberacc.AdjustMemberAccountBalanceCommand{
 			MemberID:                  cmd.MemberID,
 			AdjustedOutstandingAmount: adjustAmount,
-			TransactionID:             cmd.TransactionID,
 			TransactionType:           transaction.WithdrawalType,
 		})
 		if err != nil {
@@ -247,7 +246,6 @@ func (s *service) ApproveWithdrawal(ctx context.Context, cmd *withdrawal.UpdateW
 			UpdatedBy:                 cmd.UpdatedBy,
 			AdjustedAmount:            -result.GrossAmount,
 			AdjustedOutstandingAmount: -result.GrossAmount,
-			TransactionID:             cmd.TransactionID,
 			TransactionType:           transaction.WithdrawalType,
 		})
 		if err != nil {
@@ -301,7 +299,6 @@ func (s *service) RejectWithdrawal(ctx context.Context, cmd *withdrawal.UpdateWi
 			MemberID:                  result.MemberID,
 			AdjustedOutstandingAmount: -result.GrossAmount,
 			UpdatedBy:                 cmd.UpdatedBy,
-			TransactionID:             cmd.TransactionID,
 			TransactionType:           transaction.WithdrawalType,
 		})
 		if err != nil {
