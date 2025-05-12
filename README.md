@@ -13,11 +13,11 @@ money-transfer-demo/
 │
 ├── cmd/               # App entry points
 │   ├── identity/      # Identity service (user, member management)
-│   ├── payment/       # Payment service (deposit, withdrawal)
+│   ├── payment/       # Payment service (deposit, withdrawal,transfer)
 │
 ├── pkg/               # Shared and core logic
 │   ├── identity/      # Identity domain logic
-│   ├── payment/       # Payment domain logic (bank account, deposit, withdrawal, PayPal)
+│   ├── payment/       # Payment domain logic (bank account, deposit, withdrawal, transfer)
 │   ├── infra/         # Database (PostgreSQL) and other infrastructure
 │   └── util/          # Common utilities
 ```
@@ -51,7 +51,7 @@ cd money-transfer-demo
 
 ### 🛠️ Create the Database
 
-Before running the services, ensure the `payment-demo` database is created in your PostgreSQL instance. You can do this by running the following SQL command in your PostgreSQL client or terminal:
+Before running the services, ensure the `payment-demo` and `identity-demo` database is created in your PostgreSQL instance. You can do this by running the following SQL command in your PostgreSQL client or terminal:
 
 ```sql
 CREATE DATABASE payment-demo;
