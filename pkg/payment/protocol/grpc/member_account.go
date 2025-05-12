@@ -19,13 +19,6 @@ func (s *Server) CreateMemberAccount(ctx context.Context, req *payment.CreateMem
 	ctx, cancel := context.WithTimeout(ctx, GrpcRequestTimeout)
 	defer cancel()
 
-	// select {
-	// case <-ctx.Done():
-	// 	log.Println("❌ Request canceled by client")
-	// 	return nil, status.Error(codes.Canceled, "request was canceled")
-	// default:
-	// }
-
 	cmd := &memberacc.CreateMemberAccountCommand{
 		MemberID:  req.MemberId,
 		Currency:  member.CurrencyType(req.Currency),
