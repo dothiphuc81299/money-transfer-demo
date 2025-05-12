@@ -20,12 +20,11 @@ money-transfer-demo/
 │   ├── payment/       # Payment domain logic (bank account, deposit, withdrawal, PayPal)
 │   ├── infra/         # Database (PostgreSQL) and other infrastructure
 │   └── util/          # Common utilities
-
+```
 
 ### 🧠 System Architecture
 
-![system_architecture](https://github.com/user-attachments/assets/580a7084-a26c-4009-bf4e-4453073767fd)
-
+![system-architecture](https://github.com/user-attachments/assets/d70cd844-4d79-41dc-ba00-bab84d8d4aad)
 
 ---
 
@@ -40,6 +39,8 @@ You can try out the APIs using the Postman collection below:
 ### 🔧 Prerequisites
 
 - [Go 1.21+](https://go.dev/doc/install)
+- [PostgreSQL](https://www.postgresql.org/download/)
+
 
 ### 🌀 Clone the repository
 
