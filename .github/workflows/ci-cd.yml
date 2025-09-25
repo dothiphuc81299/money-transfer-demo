@@ -7,7 +7,7 @@ on:
     branches: [new-test]
 
 jobs:
-  build-and-test:
+  build-test-push:
     runs-on: ubuntu-latest
     steps:
       # 1️⃣ Checkout code
@@ -24,7 +24,7 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      # 4️⃣ Build Docker images
+      # 4️⃣ Build Docker images (local, for testing)
       - name: Build Docker Images
         run: |
           docker build -f cmd/identity/Dockerfile -t identity-service .
@@ -88,3 +88,27 @@ jobs:
       # 9️⃣ Tear down containers
       - name: Stop containers
         run: docker compose down
+
+      # 🔟 Login to Docker Hub
+      - name: Login to Docker Hub
+        if: success()
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 1️⃣1️⃣ Build & push Identity image
+      - name: Push Identity image
+        if: success()
+        run: |
+          IMAGE=${{ secrets.DOCKER_USERNAME }}/money-transfer-identity
+          docker build -f cmd/identity/Dockerfile -t $IMAGE:latest .
+          docker push $IMAGE:latest
+
+      # 1️⃣2️⃣ Build & push Payment image
+      - name: Push Payment image
+        if: success()
+        run: |
+          IMAGE=${{ secrets.DOCKER_USERNAME }}/money-transfer-payment
+          docker build -f cmd/payment/Dockerfile -t $IMAGE:latest .
+          docker push $IMAGE:latest
