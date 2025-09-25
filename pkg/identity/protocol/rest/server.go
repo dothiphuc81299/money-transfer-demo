@@ -7,6 +7,7 @@ import (
 	"money-transfer-demo/pkg/identity/config"
 	"money-transfer-demo/pkg/identity/member"
 	"money-transfer-demo/pkg/identity/user"
+	"money-transfer-demo/pkg/infra/storage/postgres"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,7 @@ type Server struct {
 }
 
 type Dependencies struct {
+	Postgres  postgres.DBConnector
 	MemberSvc member.Service
 	UserSvc   user.Service
 	Cfg       *config.Config
@@ -39,6 +41,7 @@ func NewServer(deps *Dependencies, cfg *config.Config) *Server {
 }
 
 func (s *Server) registerRoutes(router *gin.Engine) {
+	s.NewHealthHandler(router)
 	s.NewMemberHandler(router)
 	s.NewUserHandler(router)
 }

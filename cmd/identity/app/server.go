@@ -45,6 +45,7 @@ func NewServer() (*Server, error) {
 	userSvc := userimpl.NewService(userStore)
 
 	restServer := rest.NewServer(&rest.Dependencies{
+		Postgres:  postgresdb,
 		MemberSvc: memberSvc,
 		UserSvc:   userSvc,
 	}, cfg)

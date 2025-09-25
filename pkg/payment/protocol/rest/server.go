@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"money-transfer-demo/pkg/infra/storage/postgres"
 	"money-transfer-demo/pkg/payment/bankacc"
 	"money-transfer-demo/pkg/payment/config"
 	"money-transfer-demo/pkg/payment/deposit"
@@ -25,6 +26,7 @@ type Server struct {
 }
 
 type Dependencies struct {
+	Postgres        postgres.DBConnector
 	MemberAccSvc    memberacc.Service
 	DepositSrv      deposit.Service
 	BankAccSrv      bankacc.Service
@@ -47,6 +49,7 @@ func NewServer(deps *Dependencies, cfg *config.Config) *Server {
 }
 
 func (s *Server) registerRoutes(router *gin.Engine) {
+	s.NewHealthHandler(router)
 	s.NewBankAccountHandler(router)
 	s.NewDepositHandler(router)
 	s.NewWithdrawalHandler(router)

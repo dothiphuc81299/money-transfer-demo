@@ -20,6 +20,7 @@ type Database struct {
 type DBConnector interface {
 	GetDB() *gorm.DB
 	Close() error
+	Ping() error
 }
 
 func New(connection, serviceName string) (*Database, error) {
@@ -49,6 +50,14 @@ func (p *Database) Close() error {
 		return err
 	}
 	return sqlDB.Close()
+}
+
+func (p *Database) Ping() error {
+	sqlDB, err := p.DB.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Ping()
 }
 
 func getMigrationPath(serviceName string) string {

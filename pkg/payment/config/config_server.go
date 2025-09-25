@@ -3,8 +3,8 @@ package config
 import "money-transfer-demo/pkg/util/env"
 
 const (
-	defaultHTTPPort = "3089"
-	defaultGRPCPort = "50003"
+	defaultHTTPPort = "5090"
+	defaultGRPCPort = "50004"
 )
 
 type Server struct {
