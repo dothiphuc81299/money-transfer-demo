@@ -20,6 +20,6 @@ WORKDIR /app
 COPY --from=builder /app/identity .
 COPY --from=builder /app/pkg/identity/db/migrations /pkg/identity/db/migrations
 
-EXPOSE 5088
+EXPOSE 5089
 
 ENTRYPOINT ["./identity"]
