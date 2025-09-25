@@ -1,6 +1,6 @@
 CREATE TABLE  IF NOT EXISTS withdrawal (
     id SERIAL PRIMARY KEY,
-    member_paymennt_account_id BIGINT NOT NULL,
+    member_payment_account_id BIGINT NOT NULL,
     payment_method_code VARCHAR(255) NOT NULL,
     transaction_id VARCHAR(255) NOT NULL,
     status SMALLINT NOT NULL,

@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: money-transfer-postgres-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      retries: 10
+    networks:
+      - appnet
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: ./cmd/identity/Dockerfile
+    container_name: identity-service
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB_NAME: identity-demo
+      IDENTITY_HTTP_PORT: "5089"
+      IDENTITY_GRPC_PORT: "50003"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5089:5089"
+    networks:
+      - appnet
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: ./cmd/payment/Dockerfile
+    container_name: payment-service
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB_NAME: payment-demo
+      PAYMENT_HTTP_PORT: "5090"
+      PAYMENT_GRPC_PORT: "50004"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5090:5090"
+    networks:
+      - appnet
+
+volumes:
+  db_data:
+
+networks:
+  appnet:

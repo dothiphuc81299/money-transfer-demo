@@ -58,6 +58,7 @@ func NewServer() (*Server, error) {
 	})
 
 	restServer := rest.NewServer(&rest.Dependencies{
+		Postgres:        postgresdb,
 		MemberAccSvc:    memberAccSvc,
 		BankAccSrv:      bankAccSrv,
 		DepositSrv:      depositSrv,

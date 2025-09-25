@@ -3,7 +3,7 @@ package config
 import "money-transfer-demo/pkg/util/env"
 
 const (
-	defaultPayment = "localhost:50003"
+	defaultPayment = "payment-service:50004"
 )
 
 type GRPCClientConfig struct {
