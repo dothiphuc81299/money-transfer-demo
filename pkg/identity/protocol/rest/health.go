@@ -16,7 +16,6 @@ func (s *Server) health(c *gin.Context) {
 		status = "unhealthy"
 	}
 
-	// response phẳng, dễ parse bằng jq
 	c.JSON(http.StatusOK, gin.H{
 		"status": status,
 	})
