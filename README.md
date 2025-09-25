@@ -166,5 +166,5 @@ All three types of transactions (deposit, withdrawal, and transfer) are processe
 
 ## 📝 License
 
-MIT License. See [LICENSE](./LICENSE) for detail
+MIT License. See [LICENSE](./LICENSE) for details
 
