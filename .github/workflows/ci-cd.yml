@@ -7,8 +7,9 @@ on:
     branches: [new-test]
 
 jobs:
-  build-test-push:
+  docker:
     runs-on: ubuntu-latest
+
     steps:
       # 1️⃣ Checkout code
       - name: Checkout repository
@@ -24,17 +25,43 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      # 4️⃣ Build Docker images (local, for testing)
-      - name: Build Docker Images
-        run: |
-          docker build -f cmd/identity/Dockerfile -t identity-service .
-          docker build -f cmd/payment/Dockerfile -t payment-service .
+      # 4️⃣ Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 5️⃣ Start containers with docker compose
+      # 5️⃣ Setup QEMU (multi-platform build)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 6️⃣ Setup Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 7️⃣ Build & Push Docker images
+      - name: Build & Push Identity image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./cmd/identity
+          file: ./cmd/identity/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/money-transfer-identity:latest
+
+      - name: Build & Push Payment image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./cmd/payment
+          file: ./cmd/payment/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/money-transfer-payment:latest
+
+      # 8️⃣ Start containers for testing
       - name: Start services
         run: docker compose up -d --build
 
-      # 6️⃣ Wait for Postgres
+      # 9️⃣ Wait for Postgres
       - name: Wait for Postgres
         run: |
           for i in {1..20}; do
@@ -43,7 +70,7 @@ jobs:
             sleep 3
           done
 
-      # 7️⃣ Test Identity API
+      # 🔟 Test Identity API
       - name: Test Identity API
         run: |
           for i in {1..10}; do
@@ -58,13 +85,12 @@ jobs:
             echo "⏳ Waiting for Identity API..."
             sleep 3
           done
-
           if [ "$STATUS" != "ok" ]; then
             echo "❌ Identity API did not become healthy in time"
             exit 1
           fi
 
-      # 8️⃣ Test Payment API
+      # 1️⃣1️⃣ Test Payment API
       - name: Test Payment API
         run: |
           for i in {1..10}; do
@@ -79,36 +105,11 @@ jobs:
             echo "⏳ Waiting for Payment API..."
             sleep 3
           done
-
           if [ "$STATUS" != "ok" ]; then
             echo "❌ Payment API did not become healthy in time"
             exit 1
           fi
 
-      # 9️⃣ Tear down containers
+      # 1️⃣2️⃣ Tear down containers
       - name: Stop containers
         run: docker compose down
-
-      # 🔟 Login to Docker Hub
-      - name: Login to Docker Hub
-        if: success()
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # 1️⃣1️⃣ Build & push Identity image
-      - name: Push Identity image
-        if: success()
-        run: |
-          IMAGE=${{ secrets.DOCKER_USERNAME }}/money-transfer-identity
-          docker build -f cmd/identity/Dockerfile -t $IMAGE:latest .
-          docker push $IMAGE:latest
-
-      # 1️⃣2️⃣ Build & push Payment image
-      - name: Push Payment image
-        if: success()
-        run: |
-          IMAGE=${{ secrets.DOCKER_USERNAME }}/money-transfer-payment
-          docker build -f cmd/payment/Dockerfile -t $IMAGE:latest .
-          docker push $IMAGE:latest
