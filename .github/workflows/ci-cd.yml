@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -21,7 +21,7 @@ jobs:
         with:
           go-version: 1.23
 
-      # 3️⃣ Install dependencies (jq)
+      # 3️⃣ Install jq
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
@@ -40,28 +40,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 7️⃣ Build & Push Docker images
+      # 7️⃣ Build & Push Identity image
       - name: Build & Push Identity image
         uses: docker/build-push-action@v6
         with:
-          context: ./cmd/identity
+          context: .
           file: ./cmd/identity/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/money-transfer-identity:latest
 
+      # 8️⃣ Build & Push Payment image
       - name: Build & Push Payment image
         uses: docker/build-push-action@v6
         with:
-          context: ./cmd/payment
+          context: .
           file: ./cmd/payment/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/money-transfer-payment:latest
 
-      # 8️⃣ Start containers for testing
+      # 9️⃣ Start containers for testing
       - name: Start services
         run: docker compose up -d --build
 
-      # 9️⃣ Wait for Postgres
+      # 🔟 Wait for Postgres
       - name: Wait for Postgres
         run: |
           for i in {1..20}; do
@@ -70,11 +71,11 @@ jobs:
             sleep 3
           done
 
-      # 🔟 Test Identity API
+      # 1️⃣1️⃣ Test Identity API
       - name: Test Identity API
         run: |
           for i in {1..10}; do
-            RESPONSE=$(curl -s -f http://localhost:5089/api/health || echo "")
+            RESPONSE=$(docker exec identity-service curl -s -f http://localhost:5089/api/health || echo "")
             if [ -n "$RESPONSE" ]; then
               STATUS=$(echo "$RESPONSE" | jq -r .status)
               if [ "$STATUS" = "ok" ]; then
@@ -90,11 +91,11 @@ jobs:
             exit 1
           fi
 
-      # 1️⃣1️⃣ Test Payment API
+      # 1️⃣2️⃣ Test Payment API
       - name: Test Payment API
         run: |
           for i in {1..10}; do
-            RESPONSE=$(curl -s -f http://localhost:5090/api/health || echo "")
+            RESPONSE=$(docker exec payment-service curl -s -f http://localhost:5090/api/health || echo "")
             if [ -n "$RESPONSE" ]; then
               STATUS=$(echo "$RESPONSE" | jq -r .status)
               if [ "$STATUS" = "ok" ]; then
@@ -110,6 +111,6 @@ jobs:
             exit 1
           fi
 
-      # 1️⃣2️⃣ Tear down containers
+      # 1️⃣3️⃣ Tear down containers
       - name: Stop containers
         run: docker compose down
