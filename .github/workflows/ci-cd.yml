@@ -21,7 +21,7 @@ jobs:
         with:
           go-version: 1.23
 
-      # 3️⃣ Install jq
+      # 3️⃣ Install dependencies (jq)
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
@@ -74,16 +74,18 @@ jobs:
       # 1️⃣1️⃣ Test Identity API
       - name: Test Identity API
         run: |
+          STATUS=""
           for i in {1..10}; do
-            RESPONSE=$(docker exec identity-service curl -s -f http://localhost:5089/api/health || echo "")
-            if [ -n "$RESPONSE" ]; then
-              STATUS=$(echo "$RESPONSE" | jq -r .status)
+            RESPONSE=$(docker exec identity-service curl -s http://localhost:5089/api/health || echo "")
+            if echo "$RESPONSE" | jq empty >/dev/null 2>&1; then
+              STATUS=$(echo "$RESPONSE" | jq -r '.status // empty')
               if [ "$STATUS" = "ok" ]; then
                 echo "✅ Identity API healthy"
                 break
               fi
+            else
+              echo "⏳ Identity API not ready, got: $RESPONSE"
             fi
-            echo "⏳ Waiting for Identity API..."
             sleep 3
           done
           if [ "$STATUS" != "ok" ]; then
@@ -94,16 +96,18 @@ jobs:
       # 1️⃣2️⃣ Test Payment API
       - name: Test Payment API
         run: |
+          STATUS=""
           for i in {1..10}; do
-            RESPONSE=$(docker exec payment-service curl -s -f http://localhost:5090/api/health || echo "")
-            if [ -n "$RESPONSE" ]; then
-              STATUS=$(echo "$RESPONSE" | jq -r .status)
+            RESPONSE=$(docker exec payment-service curl -s http://localhost:5090/api/health || echo "")
+            if echo "$RESPONSE" | jq empty >/dev/null 2>&1; then
+              STATUS=$(echo "$RESPONSE" | jq -r '.status // empty')
               if [ "$STATUS" = "ok" ]; then
                 echo "✅ Payment API healthy"
                 break
               fi
+            else
+              echo "⏳ Payment API not ready, got: $RESPONSE"
             fi
-            echo "⏳ Waiting for Payment API..."
             sleep 3
           done
           if [ "$STATUS" != "ok" ]; then
