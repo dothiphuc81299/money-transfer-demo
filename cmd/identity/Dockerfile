@@ -1,14 +1,13 @@
 # Stage 1: Build
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23-alpine AS builder 
 
-WORKDIR /app
+WORKDIR /app.  
 
 COPY go.mod .
 COPY go.sum .
 RUN go mod download
 
 COPY . .
-COPY pkg/identity/db/migrations ./pkg/identity/db/migrations
 
 RUN go build -o identity ./cmd/identity/main.go
 

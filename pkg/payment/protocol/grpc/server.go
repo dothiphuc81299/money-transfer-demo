@@ -2,19 +2,20 @@ package grpc
 
 import (
 	"context"
-	"log"
 	payment "money-transfer-demo/pkg/apis/payment"
 	"money-transfer-demo/pkg/payment/config"
 	"money-transfer-demo/pkg/payment/memberacc"
 	"net"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type Server struct {
 	payment.UnimplementedPaymentServer
 	dependencies *Dependencies
+	log          *zap.Logger
 }
 
 type Dependencies struct {
@@ -25,6 +26,7 @@ type Dependencies struct {
 func NewServer(deps *Dependencies) *Server {
 	return &Server{
 		dependencies: deps,
+		log:          zap.L().Named("grpc server"),
 	}
 }
 
@@ -32,7 +34,7 @@ func (s *Server) Run(ctx context.Context) error {
 	var err error
 	listen, err := net.Listen("tcp", ":"+s.dependencies.Cfg.Server.GRPCPort)
 	if err != nil {
-		log.Printf("Failed to create listener for grpc endpoint: %s", err.Error())
+		s.log.Error("Starting GRPC server failed: ", zap.Error(err))
 		return err
 	}
 
@@ -47,12 +49,12 @@ func (s *Server) Run(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		server.GracefulStop()
-		log.Println("Shutting down RPC server")
+		s.log.Info("Shutting down RPC server")
 	}()
 
-	log.Printf("GRPC server started on port %s", s.dependencies.Cfg.Server.GRPCPort)
+	s.log.Info("Starting GRPC server...")
 	if err := server.Serve(listen); err != nil {
-		log.Printf("Starting GRPC server failed: %s", err.Error())
+		s.log.Error("Starting GRPC server failed: ", zap.Error(err))
 	}
 
 	return err

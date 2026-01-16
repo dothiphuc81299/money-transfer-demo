@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/plutov/paypal/v4"
+	"go.uber.org/zap"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 func (s *service) Run(ctx context.Context) error {
-	fmt.Println("Start running withdrawal paypal")
-	defer fmt.Println("Stop running withdrawal paypal")
+	s.log.Info("Start running withdrawal paypal")
+	defer s.log.Info("Stop running withdrawal paypal")
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
@@ -42,12 +43,12 @@ func (s *service) Run(ctx context.Context) error {
 func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 	allWithdrawal, err := s.store.getALllTransferWithdrawalPaypal(ctx)
 	if err != nil {
-		fmt.Println("get all transfer withdrawal paypal err ", err)
+		s.log.Error("get all transfer withdrawal paypal err ", zap.Error(err))
 		return
 	}
 
 	if len(allWithdrawal) == 0 {
-		fmt.Println("no data")
+		s.log.Info("No withdrawal to update")
 		return
 	}
 
@@ -157,7 +158,7 @@ func (s *service) updateWithdrawalPaypal(ctx context.Context) {
 	})
 
 	if err != nil {
-		fmt.Println("update withdrawal err ", err)
+		s.log.Error("update withdrawal err ", zap.Error(err))
 		return
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"money-transfer-demo/pkg/util/generator"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -23,10 +24,21 @@ type service struct {
 	bankAccSrv            bankacc.Service
 	memberPaymentAccStore memberpayacc.Store
 	cfg                   *config.Config
+	log                   *zap.Logger
 }
 
-func NewService(store *store, memberAccSrv memberacc.Service, bankAccSrv bankacc.Service, memberPaymentAccStore memberpayacc.Store, cfg *config.Config) withdrawal.Service {
-	return &service{store: store, memberAccSrv: memberAccSrv, bankAccSrv: bankAccSrv, memberPaymentAccStore: memberPaymentAccStore, cfg: cfg}
+func NewService(store *store, memberAccSrv memberacc.Service,
+	bankAccSrv bankacc.Service, memberPaymentAccStore memberpayacc.Store,
+	cfg *config.Config,
+) withdrawal.Service {
+	return &service{
+		store:                 store,
+		memberAccSrv:          memberAccSrv,
+		bankAccSrv:            bankAccSrv,
+		memberPaymentAccStore: memberPaymentAccStore,
+		cfg:                   cfg,
+		log:                   zap.L().Named("withdrawal service"),
+	}
 }
 
 func (s *service) CreateWithdrawal(ctx context.Context, cmd *withdrawal.CreateWithdrawalCommand) error {

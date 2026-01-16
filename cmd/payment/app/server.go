@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
-	"log"
+	"net/http"
+	"sync"
+
 	"money-transfer-demo/pkg/infra/storage/postgres"
 	"money-transfer-demo/pkg/payment/bankacc/bankaccimpl"
 	"money-transfer-demo/pkg/payment/config"
@@ -12,20 +14,26 @@ import (
 	"money-transfer-demo/pkg/payment/protocol/grpc"
 	"money-transfer-demo/pkg/payment/protocol/rest"
 	"money-transfer-demo/pkg/payment/transfer/transferimpl"
+	"money-transfer-demo/pkg/payment/withdrawal"
 	"money-transfer-demo/pkg/payment/withdrawal/withdrawalimpl"
-	"net/http"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type Server struct {
 	Postgresdb *gorm.DB
-	cfg        *config.Config
+	Cfg        *config.Config
+	Log        *zap.Logger
+
 	RestServer *rest.Server
 	GrpcServer *grpc.Server
+
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
-const serviceName string = "payment"
+const serviceName = "payment"
 
 func NewServer() (*Server, error) {
 	cfg, err := config.FromEnv()
@@ -33,67 +41,113 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
-	postgresdb, err := postgres.New(cfg.Postgres.ConnectionString(), serviceName)
+	// DB
+	pg, err := postgres.New(cfg.Postgres.ConnectionString(), serviceName)
 	if err != nil {
 		return nil, err
 	}
 
-	memberAccStore := memberaccimpl.NewStore(postgresdb)
-	bankAccountStore := bankaccimpl.NewStore(postgresdb)
-	depositStore := depositimpl.NewStore(postgresdb)
-	withdrawalStore := withdrawalimpl.NewStore(postgresdb)
-	memberPayccStore := memberpayaccimpl.NewStore(postgresdb)
-	transferStore := transferimpl.NewStore(postgresdb)
+	// Stores
+	memberAccStore := memberaccimpl.NewStore(pg)
+	bankAccountStore := bankaccimpl.NewStore(pg)
+	depositStore := depositimpl.NewStore(pg)
+	withdrawalStore := withdrawalimpl.NewStore(pg)
+	memberPayAccStore := memberpayaccimpl.NewStore(pg)
+	transferStore := transferimpl.NewStore(pg)
 
+	// Services
 	memberAccSvc := memberaccimpl.NewService(memberAccStore)
-	bankAccSrv := bankaccimpl.NewService(bankAccountStore)
-	memberPayAccSrv := memberpayaccimpl.NewService(memberPayccStore, memberAccSvc)
-	depositSrv := depositimpl.NewService(depositStore, memberAccSvc, bankAccSrv, cfg)
-	withdrawalSrv := withdrawalimpl.NewService(withdrawalStore, memberAccSvc, bankAccSrv, memberPayccStore, cfg)
-	transferSrv := transferimpl.NewService(memberAccSvc, transferStore)
+	bankAccSvc := bankaccimpl.NewService(bankAccountStore)
+	memberPayAccSvc := memberpayaccimpl.NewService(memberPayAccStore, memberAccSvc)
+	depositSvc := depositimpl.NewService(depositStore, memberAccSvc, bankAccSvc, cfg)
+	withdrawalSvc := withdrawalimpl.NewService(withdrawalStore, memberAccSvc, bankAccSvc, memberPayAccStore, cfg)
+	transferSvc := transferimpl.NewService(memberAccSvc, transferStore)
 
-	grpcServer := grpc.NewServer(&grpc.Dependencies{
+	// Servers
+	grpcSrv := grpc.NewServer(&grpc.Dependencies{
 		MemberAccountSvc: memberAccSvc,
 		Cfg:              cfg,
 	})
 
-	restServer := rest.NewServer(&rest.Dependencies{
-		Postgres:        postgresdb,
+	restSrv := rest.NewServer(&rest.Dependencies{
 		MemberAccSvc:    memberAccSvc,
-		BankAccSrv:      bankAccSrv,
-		DepositSrv:      depositSrv,
-		WithdrawalSrv:   withdrawalSrv,
-		MemberPayAccSrv: memberPayAccSrv,
-		TransferSrv:     transferSrv,
+		BankAccSrv:      bankAccSvc,
+		DepositSrv:      depositSvc,
+		WithdrawalSrv:   withdrawalSvc,
+		MemberPayAccSrv: memberPayAccSvc,
+		TransferSrv:     transferSvc,
 		Cfg:             cfg,
+		Postgres:        pg,
 	}, cfg)
 
-	go func() {
-		if err := grpcServer.Run(context.Background()); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("❌ Failed to start server: %v", err)
-		}
-	}()
+	s := &Server{
+		Postgresdb: pg.GetDB(),
+		Cfg:        cfg,
+		RestServer: restSrv,
+		GrpcServer: grpcSrv,
+		Log:        zap.L().Named("apiserver"),
+	}
 
-	go func() {
-		if err := restServer.Run(context.Background()); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("❌ Failed to start server: %v", err)
-		}
-	}()
+	// Context for background tasks
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
 
-	go func() {
-		withdrawalSrv.Run(context.Background())
-	}()
+	// Run servers & background jobs
+	s.wg.Add(3)
+	go s.runGRPC(ctx)
+	go s.runREST(ctx)
+	go s.runWithdrawalWorker(ctx, withdrawalSvc)
 
-	return &Server{
-		Postgresdb: postgresdb.GetDB(),
-		cfg:        cfg,
-		RestServer: restServer,
-	}, nil
+	return s, nil
 }
 
-func (s *Server) Shutdown(ctx context.Context) error {
-	if s.RestServer != nil {
-		return s.RestServer.Shutdown(ctx)
+func (s *Server) runGRPC(ctx context.Context) {
+	defer s.wg.Done()
+	if err := s.GrpcServer.Run(ctx); err != nil && err != http.ErrServerClosed {
+		s.Log.Error("gRPC server failed", zap.Error(err))
 	}
+}
+
+func (s *Server) runREST(ctx context.Context) {
+	defer s.wg.Done()
+	if err := s.RestServer.Run(ctx); err != nil && err != http.ErrServerClosed {
+		s.Log.Error("REST server failed", zap.Error(err))
+	}
+}
+
+func (s *Server) runWithdrawalWorker(ctx context.Context, svc withdrawal.Service) {
+	defer s.wg.Done()
+	svc.Run(ctx)
+}
+
+// Shutdown gracefully
+func (s *Server) Shutdown(ctx context.Context) error {
+	// Cancel background tasks
+	if s.cancel != nil {
+		s.cancel()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		s.Log.Warn("shutdown timeout")
+	}
+
+	if s.RestServer != nil {
+		_ = s.RestServer.Shutdown(ctx)
+	}
+
+	sqlDB, err := s.Postgresdb.DB()
+	if err == nil {
+		_ = sqlDB.Close()
+	}
+
+	s.Log.Info("server shutdown complete")
 	return nil
 }

@@ -7,7 +7,6 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-COPY pkg/payment/db/migrations ./pkg/payment/db/migrations
 
 RUN go build -o payment ./cmd/payment/main.go
 

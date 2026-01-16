@@ -2,63 +2,52 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"money-transfer-demo/cmd/identity/app"
+	"money-transfer-demo/pkg/infra/log"
+
+	"go.uber.org/zap"
 )
 
 func main() {
+	zlog, err := log.New("identity-main")
+	if err != nil {
+		panic("failed to init logger: " + err.Error())
+	}
+	
+	defer zlog.Sync()
+
+	zlog.Info("Starting Identity Service...")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go listenForShutdownSignal(cancel)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-sigChan
+		zlog.Warn("Received shutdown signal", zap.String("signal", sig.String()))
+		cancel()
+	}()
 
-	server, err := initializeServer()
+	server, err := app.NewServer()
 	if err != nil {
-		log.Fatalf("❌ Failed to initialize server: %v", err)
+		zlog.Fatal("Failed to initialize server", zap.Error(err))
 	}
 
 	<-ctx.Done()
 
-	shutdownServer(server)
-	log.Println("✅ Server shutdown gracefully")
-}
-
-func listenForShutdownSignal(cancel context.CancelFunc) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	sig := <-sigChan
-	log.Printf("⚠️ Received signal: %v. Shutting down...\n", sig)
-	cancel()
-}
-
-func initializeServer() (*app.Server, error) {
-	server, err := app.NewServer()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize server: %v", err)
-	}
-	return server, nil
-}
-
-func shutdownServer(server *app.Server) {
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	zlog.Info("Shutting down server...")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("❌ Failed to shutdown server: %v", err)
+		zlog.Fatal("Failed to shutdown server", zap.Error(err))
 	}
 
-	// Close the SQL database connection
-	sqlDB, err := server.Postgresdb.DB()
-	if err != nil {
-		log.Fatalf("❌ Failed to get SQL DB: %v", err)
-	}
-	if err := sqlDB.Close(); err != nil {
-		log.Fatalf("❌ Failed to close database: %v", err)
-	}
+	zlog.Info("Server exited gracefully")
 }
