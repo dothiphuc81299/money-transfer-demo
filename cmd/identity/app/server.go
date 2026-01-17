@@ -9,6 +9,7 @@ import (
 	"money-transfer-demo/pkg/infra/storage/postgres"
 	"net/http"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	memberimpl "money-transfer-demo/pkg/identity/member/memberimpl"
@@ -18,6 +19,7 @@ type Server struct {
 	Postgresdb *gorm.DB
 	cfg        *config.Config
 	RestServer *rest.Server
+	Log        *zap.Logger
 }
 
 const serviceName = "identity"

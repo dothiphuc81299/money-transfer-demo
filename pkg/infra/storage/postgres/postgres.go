@@ -8,13 +8,15 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"go.uber.org/zap"
 	drivePostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
 type Database struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	log *zap.Logger
 }
 
 type DBConnector interface {
@@ -31,13 +33,16 @@ func New(connection, serviceName string) (*Database, error) {
 		return nil, fmt.Errorf("❌ can't connect to database: %w", err)
 	}
 
-	database := &Database{DB: db}
+	database := &Database{
+		DB:  db,
+		log: zap.L().Named("postgres"),
+	}
 
 	if err := database.RunMigrations(serviceName); err != nil {
 		return nil, fmt.Errorf("❌ migration error: %w", err)
 	}
 
-	return &Database{DB: db}, nil
+	return database, nil
 }
 
 func (p *Database) GetDB() *gorm.DB {
@@ -89,7 +94,7 @@ func (p *Database) RunMigrations(serviceName string) error {
 	version, dirty, err := m.Version()
 	if dirty {
 		forceTo := int(version) - 1
-		fmt.Printf("⚠️ Dirty version detected (%d). Forcing back to version %d\n", version, forceTo)
+		p.log.Warn("Dirty version detected", zap.Int("version", int(version)), zap.Int("forceTo", forceTo))
 
 		if err := m.Force(forceTo); err != nil {
 			return fmt.Errorf("❌ failed to force clean migration version: %w", err)
@@ -100,8 +105,7 @@ func (p *Database) RunMigrations(serviceName string) error {
 		return fmt.Errorf("❌ failed to get migration version: %w", err)
 	}
 
-	fmt.Printf("📌 Current migration version: %d\n", version)
-
+	p.log.Info("Current migration version", zap.Int("version", int(version)))
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return err
 	}

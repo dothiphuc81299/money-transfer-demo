@@ -2,7 +2,6 @@ package memberimpl
 
 import (
 	"context"
-	"fmt"
 	paymentapi "money-transfer-demo/pkg/apis/payment"
 	"money-transfer-demo/pkg/identity/member"
 	"money-transfer-demo/pkg/identity/token"
@@ -108,7 +107,6 @@ func (s *service) CreateMember(ctx context.Context, cmd *member.CreateMemberComm
 
 func (s *service) GetMemberByID(ctx context.Context, id string) (*member.Member, error) {
 	account, ok := ctx.Value("current_account").(*token.AccountData)
-	fmt.Println("account", account, ok)
 	if !ok || account == nil {
 		return nil, nil
 	}

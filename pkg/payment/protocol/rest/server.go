@@ -3,7 +3,6 @@ package rest
 import (
 	"context"
 	"fmt"
-	"log"
 	"money-transfer-demo/pkg/infra/storage/postgres"
 	"money-transfer-demo/pkg/payment/bankacc"
 	"money-transfer-demo/pkg/payment/config"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/cors"
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -23,6 +23,7 @@ type Server struct {
 	Dependencies *Dependencies
 	Router       *gin.Engine
 	HTTPServer   *http.Server
+	Log          *zap.Logger
 }
 
 type Dependencies struct {
@@ -43,6 +44,7 @@ func NewServer(deps *Dependencies, cfg *config.Config) *Server {
 		Cfg:          cfg,
 		Dependencies: deps,
 		Router:       router,
+		Log:          zap.L().Named("api server"),
 	}
 
 	return server
@@ -79,17 +81,16 @@ func (s *Server) Run(ctx context.Context) error {
 
 	go func() {
 		<-stopCh
-		log.Println("Shutting down HTTP server...")
+		s.Log.Info("Shutting down HTTP server...")
 
 		if err := s.HTTPServer.Shutdown(context.Background()); err != nil {
-			log.Printf("❌ Server forced to shutdown: %v\n", err)
+			s.Log.Error("❌ Server forced to shutdown", zap.Error(err))
 		}
 
-		log.Println("✅ Server exited properly")
+		s.Log.Info("✅ Server exited properly")
 	}()
 
-	log.Printf("🚀 Starting HTTP server on port %s...\n", s.Cfg.Server.HTTPPort)
-
+	s.Log.Info("🚀 Starting HTTP server on port " + s.Cfg.Server.HTTPPort)
 	if err := s.HTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}

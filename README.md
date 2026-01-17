@@ -79,7 +79,7 @@ docker-compose up --build
 
 | Service          | Container Port | Host Port |
 | ---------------- | -------------- | --------- |
-| Identity Service | 5088           | 5088      |
+| Identity Service | 5089           | 5089      |
 | Payment Service  | 5090           | 5090      |
 | PostgreSQL       | 5432           | 5433      |
 
@@ -87,7 +87,7 @@ docker-compose up --build
 
 #### Health Checks
 
-* Identity API: `http://localhost:5088/api/health`
+* Identity API: `http://localhost:5089/api/health`
 * Payment API: `http://localhost:5090/api/health`
 
 ---
@@ -117,7 +117,7 @@ go run cmd/payment/main.go
 
 | Service          | Host Port |
 | ---------------- | --------- |
-| Identity Service | 5088      |
+| Identity Service | 5089      |
 | Payment Service  | 5090      |
 
 ---

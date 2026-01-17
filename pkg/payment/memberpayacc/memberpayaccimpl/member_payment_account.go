@@ -3,7 +3,6 @@ package memberpayaccimpl
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"money-transfer-demo/pkg/identity/token"
 	"money-transfer-demo/pkg/payment/memberacc"
 	"money-transfer-demo/pkg/payment/memberpayacc"
@@ -40,7 +39,6 @@ func (s *service) Create(ctx context.Context, cmd *memberpayacc.CreateMemberPayA
 
 	if cmd.PaymentMethodCode == string(memberpayacc.LBT) {
 		cmd.MemberFullName = ma.FullName
-		fmt.Println("cmd.MemberFullName", cmd.MemberFullName)
 		detail, err := s.getDetailLBT(cmd)
 		if err != nil {
 			return nil, err
