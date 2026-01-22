@@ -9,13 +9,16 @@ const (
 )
 
 type DepositConfig struct {
-	ClientIP  string `json:"client_ip"`
-	Secret    string `json:"secret"`
-	ReturnURL string `json:"return_url"`
+	ClientIP  string     `json:"client_ip"`
+	Secret    string     `json:"secret"`
+	ReturnURL string     `json:"return_url"`
+	MoMo      MoMoConfig `json:"momo"`
 }
 
 func (cfg *Config) depositConfig() {
 	cfg.Deposit.ClientIP = env.GetEnvAsString("DEPOSIT_CLIENT_IP", defaultDepositClientIP)
 	cfg.Deposit.Secret = env.GetEnvAsString("DEPOSIT_SECRET", defaultDepositSecret)
 	cfg.Deposit.ReturnURL = env.GetEnvAsString("DEPOSIT_RETURN_URL", defaultReturnURL)
+
+	cfg.momoConfig()
 }

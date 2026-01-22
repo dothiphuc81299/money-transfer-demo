@@ -156,6 +156,26 @@ type PayPalDetail struct {
 	ShippingAddress     string `json:"shipping_address"`
 }
 
+type CreateDepositMoMoCommand struct {
+	MemberID          int64   `json:"member_id"`
+	LoginName         string  `json:"login_name"`
+	Amount            float64 `json:"amount"`
+	Currency          string  `json:"currency"`     //// "EUR" (MoMo sandbox uses EUR)
+	PhoneNumber       string  `json:"phone_number"` //MSISDN
+	PaymentMethodCode string  `json:"payment_method_code"`
+	TransactionID     string
+}
+
+type CreateDepositMoMoResult struct {
+	ReferenceID string `json:"reference_id"` // UUID used as the MoMo transaction reference
+	Status      string `json:"status"`       // Current status of the transaction (e.g., "PENDING")
+}
+
+type MoMoRequestResponse struct {
+	StatusCode  int
+	ReferenceID string
+}
+
 func (DepositTimeline) TableName() string {
 	return "deposit_timeline"
 }
