@@ -140,22 +140,7 @@ All three types of transactions (deposit, withdrawal, and transfer) are processe
 
 ---
 
-## ⚙️ CI/CD
 
-* GitHub Actions workflow: `.github/workflows/ci-cd.yml`
-* Steps included:
-
-  * Checkout code
-  * Setup Go environment
-  * Build Docker images
-  * Start services with Docker Compose
-  * Wait for Postgres to be ready
-  * Test APIs via health endpoints
-  * Tear down containers
-
-> Local CI/CD testing can be done using Docker Desktop or GitHub Codespaces without a remote server.
-
----
 
 
 ## 👤 Author
