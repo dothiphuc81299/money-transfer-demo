@@ -25,7 +25,6 @@ money-transfer-demo/
 │
 ├── init-db.sql        # Database initialization script for Docker
 ├── docker-compose.yml # Docker Compose configuration
-├── .github/workflows/ci-cd.yml # GitHub Actions CI/CD pipeline
 └── README.md
 ```
 ---
